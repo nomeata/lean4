@@ -26,18 +26,18 @@ OPTIONS:
   --update, -U          update manifest before building
 
 COMMANDS:
-  new <name> [<temp>]   create a Lean package in a new directory
-  init <name> [<temp>]  create a Lean package in the current directory
-  build [<targets>...]  build targets
-  update                update dependencies
+  new <name> <temp>     create a Lean package in a new directory
+  init <name> <temp>    create a Lean package in the current directory
+  build <targets>...    build targets
+  update                update dependencies and save them to the manifest
   upload <tag>          upload build artifacts to a GitHub release
   clean                 remove build outputs
   script                manage and run workspace scripts
   scripts               shorthand for `lake script list`
   run <script>          shorthand for `lake script run`
   serve                 start the Lean language server
-  env <cmd> [<args>...] execute a command in the workspace's environment
-  exe <exe> [<args>...] build an exe and run it in the workspace's environment
+  env <cmd> <args>...   execute a command in Lake's environment
+  exe <exe> <args>...   build an exe and run it in Lake's environment
 
 See `lake help <command>` for more information on a specific command."
 
@@ -97,26 +97,26 @@ TARGET EXAMPLES:        build the ...
   a/+A:c                C file of module `A` of package `a`
   :foo                  facet `foo` of the root package
 
-A bare `build` command will build the default facet of the root package.
+A bare `lake build` command will build the default facet of the root package.
 Package dependencies are not updated during a build."
 
 def helpUpdate :=
-"Update dependencies
+"Update dependencies and save them to the manifest
 
 USAGE:
-  lake update
+  lake update [<package>...]
 
-This command sets up the directory with the package's dependencies
-(i.e., `packagesDir`, which is, by default, `lake-packages`).
+Updates the Lake package manifest (i.e., `lake-manifest.json`),
+downloading and upgrading packages as needed. For each new (transitive) git
+dependency, the appropriate commit is cloned into a subdirectory of
+`packagesDir`. No copy is made of local dependencies.
 
-For each (transitive) git dependency, the specified commit is checked out
-into a sub-directory of `packagesDir`. Already checked out dependencies are
-updated to the latest version compatible with the package's configuration.
-If there are dependencies on multiple versions of the same package, the
-version materialized is undefined. The specific revision of the resolved
-packages are cached in the `manifest.json` file of the `packagesDir`.
+If a set of packages are specified, said dependencies are upgraded to
+the latest version compatible with the package's configuration (or removed if
+removed from the configuration). If there are dependencies on multiple versions
+of the same package, the version materialized is undefined.
 
-No copy is made of local dependencies."
+A bare `lake update` will upgrade all dependencies."
 
 def helpUpload :=
 "Upload build artifacts to a GitHub release
@@ -161,12 +161,12 @@ def helpScriptRun :=
 "Run a script
 
 USAGE:
-  lake script run [<package>/]<script> [<args>...]
+  lake script run [[<package>/]<script>] [<args>...]
 
 This command runs the given `script` from `package`, passing `args` to it.
 Defaults to the root package.
 
-A bare `run` command will run the default script(s) of the root package
+A bare `lake run` command will run the default script(s) of the root package
 (with no arguments)."
 
 def helpScriptDoc :=
@@ -188,38 +188,42 @@ with the package configuration's `moreServerArgs` field and `args`.
 "
 
 def helpEnv :=
-"Execute a command in the workspace's environment
+"Execute a command in Lake's environment
 
 USAGE:
-  lake env <cmd> [<args>...]
+  lake env [<cmd>] [<args>...]
 
 Spawns a new process executing `cmd` with the given `args` and with
-the environment set based on the workspace configuration and the detected
-Lean/Lake installations.
+the environment set based on the detected Lean/Lake installations and
+the workspace configuration (if it exists).
 
 Specifically, this command sets the following environment variables:
 
   LAKE                  set to the detected Lake executable
   LAKE_HOME             set to the detected Lake home
-  LEAN_SYSROOT          set to the detected Lean sysroot
+  LEAN_SYSROOT          set to the detected Lean toolchain directory
   LEAN_AR               set to the detected Lean `ar` binary
-  LEAN_CC               set to the detected `cc` (if not using bundled one)
-  LEAN_PATH             adds the workspace's library directories
-  LEAN_SRC_PATH         adds the workspace's source directories
-  PATH                  adds the workspace's library directories (Windows)
-  DYLD_LIBRARY_PATH     adds the workspace's library directories (MacOS)
-  LD_LIBRARY_PATH       adds the workspace's library directories (other Unix)"
+  LEAN_CC               set to the detected `cc` (if not using the bundled one)
+  LEAN_PATH             adds Lake's and the workspace's Lean library dirs
+  LEAN_SRC_PATH         adds Lake's and the workspace's source dirs
+  PATH                  adds Lean's, Lake's, and the workspace's binary dirs
+  PATH                  adds Lean's and the workspace's library dirs (Windows)
+  DYLD_LIBRARY_PATH     adds Lean's and the workspace's library dirs (MacOS)
+  LD_LIBRARY_PATH       adds Lean's and the workspace's library dirs (other)
+
+A bare `lake env` will print out the variables set and their values,
+using the form NAME=VALUE like the POSIX `env` command."
 
 def helpExe :=
-"Build an executable target and run it in the workspace's environment
+"Build an executable target and run it in Lake's environment
 
 USAGE:
   lake exe <exe-target> [<args>...]
 
 Looks for the executable target in the workspace (see `lake help build` to
 learn how to specify targets), builds it if it is out of date, and then runs
-it with the given `args` in the workspace's environment (see `lake help env`
-for how the environment is set)."
+it with the given `args` in Lake's environment (see `lake help env` for how
+the environment is set up)."
 
 def helpScript : (cmd : String) → String
 | "list"      => helpScriptList
