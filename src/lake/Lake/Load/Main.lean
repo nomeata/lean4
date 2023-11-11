@@ -94,21 +94,21 @@ root dependencies. Otherwise, only update the root dependencies specified.
 
 If `reconfigure`, elaborate configuration files while updating, do not use OLeans.
 -/
-def buildUpdatedManifest (ws : Workspace)
+def Workspace.updateAndMaterialize (ws : Workspace)
 (toUpdate : NameSet := {}) (reconfigure := true) : LogIO Workspace := do
   let res ← StateT.run (s := mkOrdNameMap MaterializedDep) <| EStateT.run' (mkNameMap Package) do
     -- Use manifest versions of root packages that should not be updated
     unless toUpdate.isEmpty do
       for entry in (← Manifest.loadOrEmpty ws.manifestFile) do
         unless entry.inherited || toUpdate.contains entry.name do
-          let dep ← entry.materialize ws.dir ws.relPkgsDir
+          let dep ← entry.materialize ws.dir ws.relPkgsDir ws.lakeEnv.pkgUrlMap
           modifyThe (OrdNameMap MaterializedDep) (·.insert entry.name dep)
     buildAcyclic (·.1.name) (ws.root, FilePath.mk ".") fun (pkg, relPkgDir) resolve => do
       let inherited := pkg.name != ws.root.name
       let deps ← IO.ofExcept <| loadDepsFromEnv pkg.configEnv pkg.leanOpts
       -- Materialize this package's dependencies first
       let deps ← deps.mapM fun dep => fetchOrCreate dep.name do
-        dep.materialize inherited ws.dir ws.relPkgsDir relPkgDir
+        dep.materialize inherited ws.dir ws.relPkgsDir relPkgDir ws.lakeEnv.pkgUrlMap
       -- Load dependency packages and materialize their locked dependencies
       let deps ← deps.mapM fun dep => do
         if let .some pkg := (← getThe (NameMap Package)).find? dep.name then
@@ -122,7 +122,7 @@ def buildUpdatedManifest (ws : Workspace)
           for entry in (← Manifest.loadOrEmpty depPkg.manifestFile) do
             unless (← getThe (OrdNameMap MaterializedDep)).contains entry.name do
               let entry := entry.setInherited.inDirectory dep.relPkgDir
-              let dep ← entry.materialize ws.dir ws.relPkgsDir
+              let dep ← entry.materialize ws.dir ws.relPkgsDir ws.lakeEnv.pkgUrlMap
               modifyThe (OrdNameMap MaterializedDep) (·.insert entry.name dep)
           modifyThe (NameMap Package) (·.insert dep.name depPkg)
           return (depPkg, dep.relPkgDir)
@@ -131,13 +131,13 @@ def buildUpdatedManifest (ws : Workspace)
   match res with
   | (.ok root, deps) =>
     let ws : Workspace ← {ws with root}.finalize
-    LakeT.run ⟨ws⟩ <| ws.packages.forM fun pkg => do
-      if let some postUpdate := pkg.postUpdate? then
-        logInfo s!"{pkg.name}: running post-update hook"
-        postUpdate
     let manifest : Manifest := {name? := ws.root.name, packagesDir? := ws.relPkgsDir}
     let manifest := deps.foldl (·.addPackage ·.manifestEntry) manifest
     manifest.saveToFile ws.manifestFile
+    LakeT.run ⟨ws⟩ <| ws.packages.forM fun pkg => do
+      unless pkg.postUpdateHooks.isEmpty do
+        logInfo s!"{pkg.name}: running post-update hooks"
+        pkg.postUpdateHooks.forM fun hook => hook.get.fn pkg
     return ws
   | (.error cycle, _) =>
     let cycle := cycle.map (s!"  {·}")
@@ -176,7 +176,7 @@ def Workspace.materializeDeps (ws : Workspace) (manifest : Manifest) (reconfigur
           | _, _ => warnOutOfDate "source kind (git/path)"
       let depPkgs ← deps.mapM fun dep => fetchOrCreate dep.name do
         if let some entry := pkgEntries.find? dep.name then
-          let result ← entry.materialize ws.dir relPkgsDir
+          let result ← entry.materialize ws.dir relPkgsDir ws.lakeEnv.pkgUrlMap
           -- Union manifest and configuration options (preferring manifest)
           let opts := entry.opts.mergeBy (fun _ e _ => e) dep.opts
           loadDepPackage ws.dir result pkg.leanOpts opts reconfigure
@@ -206,13 +206,16 @@ def loadWorkspace (config : LoadConfig) (updateDeps := false) : LogIO Workspace 
   let rc := config.reconfigure
   let ws ← loadWorkspaceRoot config
   if updateDeps then
-    buildUpdatedManifest ws {} rc
+    ws.updateAndMaterialize {} rc
+  else if let some manifest ← Manifest.load? ws.manifestFile then
+    ws.materializeDeps manifest rc
   else
-    ws.materializeDeps (← Manifest.loadOrEmpty ws.manifestFile) rc
+    ws.updateAndMaterialize {} rc
+
 
 /-- Updates the manifest for the loaded Lake workspace (see `buildUpdatedManifest`). -/
 def updateManifest (config : LoadConfig) (toUpdate : NameSet := {}) : LogIO Unit := do
   let rc := config.reconfigure
   let ws ← loadWorkspaceRoot config
-  discard <| buildUpdatedManifest ws toUpdate rc
+  discard <| ws.updateAndMaterialize toUpdate rc
 

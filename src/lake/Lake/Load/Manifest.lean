@@ -3,24 +3,17 @@ Copyright (c) 2022 Mac Malone. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Mac Malone, Gabriel Ebner
 -/
-import Lean.Data.Json
 import Lake.Util.Log
+import Lake.Util.Name
 
 open System Lean
 
+/-! # Lake Manifest
+The data structure of a Lake manifest and the definitions needed
+to create, modify, serialize, and deserialize it.
+-/
+
 namespace Lake
-
-instance [ToJson α] : ToJson (NameMap α) where
-  toJson m := Json.obj <| m.fold (fun n k v => n.insert compare k.toString (toJson v)) .leaf
-
-instance [FromJson α] : FromJson (NameMap α) where
-  fromJson? j := do
-    (← j.getObj?).foldM (init := {}) fun m k v =>
-      let k := k.toName
-      if k.isAnonymous then
-        throw "expected name"
-      else
-        return m.insert k (← fromJson? v)
 
 /-- Current version of the manifest format. -/
 def Manifest.version : Nat := 6
@@ -71,6 +64,7 @@ def empty : Manifest := {}
 @[inline] def isEmpty (self : Manifest) : Bool :=
   self.packages.isEmpty
 
+/-- Add a package entry to the end of a manifest. -/
 def addPackage (entry : PackageEntry) (self : Manifest) : Manifest :=
   {self with packages := self.packages.push entry}
 
@@ -107,26 +101,42 @@ protected def fromJson? (json : Json) : Except String Manifest := do
 
 instance : FromJson Manifest := ⟨Manifest.fromJson?⟩
 
-def loadFromFile (file : FilePath) : IO Manifest := do
-  let contents ← IO.FS.readFile file
-  match Json.parse contents with
+/-- Parse a `Manifest` from a string. -/
+def parse (s : String) : Except String Manifest := do
+  match Json.parse s with
   | .ok json =>
     match fromJson? json with
-    | .ok manifest =>
-      return manifest
-    | .error e =>
-      throw <| IO.userError <| s!"improperly formatted manifest: {e}"
-  | .error e =>
-    throw <| IO.userError <| s!"invalid JSON in manifest: {e}"
+    | .ok manifest => return manifest
+    | .error e => throw s!"improperly formatted manifest: {e}"
+  | .error e => throw s!"invalid JSON: {e}"
 
+/--
+Parse the manifest file. Returns `none` if the file does not exist.
+Errors if the manifest is ill-formatted or the read files for other reasons.
+-/
+def load? (file : FilePath) : IO (Option Manifest) := do
+  match (← IO.FS.readFile file |>.toBaseIO) with
+  | .ok contents =>
+    match inline <| Manifest.parse contents with
+    | .ok a => return some a
+    | .error e => error s!"{file}: {e}"
+  | .error (.noFileOrDirectory ..) => pure none
+  | .error e => throw e
+
+/--
+ Parse the manifest file or return an empty one.
+ Warn on any IO/parse errors if the file exists.
+-/
 def loadOrEmpty (file : FilePath) : LogIO Manifest := do
-  match (← loadFromFile file |>.toBaseIO) with
-  | .ok a => return a
-  | .error e =>
-    unless e matches .noFileOrDirectory .. do
-      logWarning (toString e)
-    return {}
+  match (← IO.FS.readFile file |>.toBaseIO) with
+  | .ok contents =>
+    match inline <| Manifest.parse contents with
+    | .ok a => return a
+    | .error e => logWarning s!"{file}: {e}"; pure {}
+  | .error (.noFileOrDirectory ..) => pure {}
+  | .error e => logWarning (toString e); pure {}
 
+/-- Save the manifest as JSON to a file. -/
 def saveToFile (self : Manifest) (manifestFile : FilePath) : IO PUnit := do
   let jsonString := Json.pretty self.toJson
   IO.FS.writeFile manifestFile <| jsonString.push '\n'
