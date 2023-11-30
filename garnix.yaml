@@ -1,6 +1,6 @@
 builds:
   include:
-  - packages.*.cacheRoots
-  - packages.*.vscode*
-  - checks.*.lean
-  - devShell.x86_64-linux
+  - packages.*-linux.cacheRoots
+  - packages.*-linux.vscode*
+  - checks.*-linux.*
+  - devShell.*-linux
