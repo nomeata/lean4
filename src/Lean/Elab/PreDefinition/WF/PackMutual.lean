@@ -5,6 +5,7 @@ Authors: Leonardo de Moura
 -/
 import Lean.Meta.Tactic.Cases
 import Lean.Elab.PreDefinition.Basic
+import Lean.Elab.PreDefinition.WF.PackDomain
 
 namespace Lean.Elab.WF
 open Meta
@@ -51,13 +52,13 @@ private partial def mkNewCoDomain (preDefsOriginal : Array PreDefinition) (preDe
       let casesOn := mkAppN casesOn xTypeArgs -- parameters
       let casesOn := mkApp casesOn (← mkLambdaFVars #[x] (mkSort u)) -- motive
       let casesOn := mkApp casesOn x -- major
-      let minor1 ← withLocalDeclD (← mkFreshUserName `_x) xTypeArgs[0]! fun x =>
-        mkLambdaFVars #[x] (preDefTypes[i]!.bindingBody!.instantiate1 x)
+      let minor1 ← withLocalDeclD (← mkFreshUserName `_x) xTypeArgs[0]! fun x => do
+        mkLambdaFVars #[x] ((← whnf preDefTypes[i]!).bindingBody!.instantiate1 x)
       let minor2 ← withLocalDeclD (← mkFreshUserName `_x) xTypeArgs[1]! fun x => do
         mkLambdaFVars #[x] (← go x (i+1))
       return mkApp2 casesOn minor1 minor2
     else
-      return preDefTypes[i]!.bindingBody!.instantiate1 x
+      return (← whnf preDefTypes[i]!).bindingBody!.instantiate1 x
   go x 0
 
 /--
@@ -91,33 +92,93 @@ private partial def packValues (x : Expr) (codomain : Expr) (preDefValues : Arra
   instantiateMVars mvar
 
 /--
-  Auxiliary function for replacing nested `preDefs` recursive calls in `e` with the new function `newFn`.
-  See: `packMutual`
+  Pass the first `n` arguments of `e` to the continuation, and apply the result to the
+  remaining arguments. If `e` does not have enough arguments, it is eta-expanded as needed.
+
+  Unlike `Meta.etaExpand` does not use `withDefault`.
+-/
+def withAppN (n : Nat) (e : Expr) (k : Array Expr → MetaM Expr) : MetaM Expr := do
+  let args := e.getAppArgs
+  if n ≤ args.size then
+    let e' ← k args[:n]
+    return mkAppN e' args[n:]
+  else
+    let missing := n - args.size
+    forallBoundedTelescope (← inferType e) missing fun xs _ => do
+      if xs.size < missing then
+        throwError "Failed to eta-expand partial application"
+      let e' ← k (args ++ xs)
+      mkLambdaFVars xs e'
+
+/--
+If `arg` is the argument to the `fidx`th of the `numFuncs` in the recursive group,
+then `mkMutualArg` packs that argument in `PSum.inl` and `PSum.inr` constructors
+to create the mutual-packed argument of type `domain`.
+-/
+partial def mkMutualArg (numFuncs : Nat) (domain : Expr) (fidx : Nat) (arg : Expr) : MetaM Expr := do
+  let rec go (i : Nat) (type : Expr) : MetaM Expr := do
+    if i == numFuncs - 1 then
+      return arg
+    else
+      (← whnfD type).withApp fun f args => do
+        assert! args.size == 2
+        if i == fidx then
+          return mkApp3 (mkConst ``PSum.inl f.constLevels!) args[0]! args[1]! arg
+        else
+          let r ← go (i+1) args[1]!
+          return mkApp3 (mkConst ``PSum.inr f.constLevels!) args[0]! args[1]! r
+  go 0 domain
+
+/--
+Unpacks a mutually packed argument, returning the argument and function index.
+Inverse of `mkMutualArg`.  Cf. `unpackUnaryArg` and `unpackArg`, which does both
+-/
+def unpackMutualArg {m} [Monad m] [MonadError m] (numFuncs : Nat) (e : Expr) : m (Nat × Expr) := do
+  let mut funidx := 0
+  let mut e := e
+  while funidx + 1 < numFuncs do
+    if e.isAppOfArity ``PSum.inr 3 then
+      e := e.getArg! 2
+      funidx := funidx + 1
+    else if e.isAppOfArity ``PSum.inl 3 then
+      e := e.getArg! 2
+      break
+    else
+      throwError "Unexpected expression while unpacking mutual argument"
+  return (funidx, e)
+
+/--
+Given the packed argument of a (possibly) mutual and (possibly) nary call,
+return the function index that is called and the arguments individually.
+
+We expect precisely the expressions produced by `packMutual`, with manifest
+`PSum.inr`, `PSum.inl` and `PSigma.mk` constructors, and thus take them apart
+rather than using projectinos.
+-/
+def unpackArg {m} [Monad m] [MonadError m] (arities : Array Nat) (e : Expr) :
+    m (Nat × Array Expr) := do
+  let (funidx, e) ← unpackMutualArg arities.size e
+  let args ← unpackUnaryArg arities[funidx]! e
+  return (funidx, args)
+
+
+/--
+Auxiliary function for replacing nested `preDefs` recursive calls in `e` with the new function `newFn`.
+See: `packMutual`
 -/
 private partial def post (fixedPrefix : Nat) (preDefs : Array PreDefinition) (domain : Expr) (newFn : Name) (e : Expr) : MetaM TransformStep := do
-  if e.getAppNumArgs != fixedPrefix + 1 then
-    return TransformStep.done e
   let f := e.getAppFn
   if !f.isConst then
     return TransformStep.done e
   let declName := f.constName!
   let us       := f.constLevels!
   if let some fidx := preDefs.findIdx? (·.declName == declName) then
-    let args := e.getAppArgs
-    let fixedArgs := args[:fixedPrefix]
-    let arg  := args.back
-    let rec mkNewArg (i : Nat) (type : Expr) : MetaM Expr := do
-      if i == preDefs.size - 1 then
-        return arg
-      else
-        (← whnfD type).withApp fun f args => do
-          assert! args.size == 2
-          if i == fidx then
-            return mkApp3 (mkConst ``PSum.inl f.constLevels!) args[0]! args[1]! arg
-          else
-            let r ← mkNewArg (i+1) args[1]!
-            return mkApp3 (mkConst ``PSum.inr f.constLevels!) args[0]! args[1]! r
-    return TransformStep.done <| mkApp (mkAppN (mkConst newFn us) fixedArgs) (← mkNewArg 0 domain)
+    let e' ← withAppN (fixedPrefix + 1) e fun args => do
+      let fixedArgs := args[:fixedPrefix]
+      let arg := args[fixedPrefix]!
+      let packedArg ← mkMutualArg preDefs.size domain fidx arg
+      return mkApp (mkAppN (mkConst newFn us) fixedArgs) packedArg
+    return TransformStep.done e'
   return TransformStep.done e
 
 partial def withFixedPrefix (fixedPrefix : Nat) (preDefs : Array PreDefinition) (k : Array Expr → Array Expr → Array Expr → MetaM α) : MetaM α :=
@@ -174,7 +235,7 @@ where
 def packMutual (fixedPrefix : Nat) (preDefsOriginal : Array PreDefinition) (preDefs : Array PreDefinition) : MetaM PreDefinition := do
   if preDefs.size == 1 then return preDefs[0]!
   withFixedPrefix fixedPrefix preDefs fun ys types vals => do
-    let domains := types.map fun type => type.bindingDomain!
+    let domains ← types.mapM fun type => do pure (← whnf type).bindingDomain!
     let domain ← mkNewDomain domains
     withLocalDeclD (← mkFreshUserName `_x) domain fun x => do
       let codomain ← mkNewCoDomain preDefsOriginal types x
@@ -183,7 +244,7 @@ def packMutual (fixedPrefix : Nat) (preDefsOriginal : Array PreDefinition) (preD
       let newFn := preDefs[0]!.declName ++ `_mutual
       let preDefNew := { preDefs[0]! with declName := newFn, type, value }
       addAsAxiom preDefNew
-      let value ← transform value (post := post fixedPrefix preDefs domain newFn)
+      let value ← transform value (skipConstInApp := true) (post := post fixedPrefix preDefs domain newFn)
       let value ← mkLambdaFVars (ys.push x) value
       return { preDefNew with value }
 

@@ -564,7 +564,40 @@ def hexDigitFn : ParserFn := fun c s =>
     if curr.isDigit || ('a' <= curr && curr <= 'f') || ('A' <= curr && curr <= 'F') then s.setPos i
     else s.mkUnexpectedError "invalid hexadecimal numeral"
 
-def quotedCharCoreFn (isQuotable : Char → Bool) : ParserFn := fun c s =>
+/--
+Parses the whitespace after the `\` when there is a string gap.
+Raises an error if the whitespace does not contain exactly one newline character.
+Processes `\r\n` as a newline.
+-/
+partial def stringGapFn (seenNewline afterCR : Bool) : ParserFn := fun c s =>
+  let i := s.pos
+  if h : c.input.atEnd i then s -- let strLitFnAux handle the EOI error if !seenNewline
+  else
+    let curr := c.input.get' i h
+    if curr == '\n' then
+      if seenNewline then
+        -- Having more than one newline in a string gap is visually confusing
+        s.mkUnexpectedError "unexpected additional newline in string gap"
+      else
+        stringGapFn true false c (s.next' c.input i h)
+    else if curr == '\r' then
+      stringGapFn seenNewline true c (s.next' c.input i h)
+    else if afterCR then
+      s.mkUnexpectedError "expecting newline after carriage return"
+    else if curr.isWhitespace then
+      stringGapFn seenNewline false c (s.next' c.input i h)
+    else if seenNewline then
+      s
+    else
+      s.mkUnexpectedError "expecting newline in string gap"
+
+/--
+Parses a string quotation after a `\`.
+- `isQuotable` determines which characters are valid escapes
+- `inString` enables features that are only valid within strings,
+  in particular `"\" newline whitespace*` gaps.
+-/
+def quotedCharCoreFn (isQuotable : Char → Bool) (inString : Bool) : ParserFn := fun c s =>
   let input := c.input
   let i     := s.pos
   if h : input.atEnd i then s.mkEOIError
@@ -576,6 +609,8 @@ def quotedCharCoreFn (isQuotable : Char → Bool) : ParserFn := fun c s =>
       andthenFn hexDigitFn hexDigitFn c (s.next' input i h)
     else if curr == 'u' then
       andthenFn hexDigitFn (andthenFn hexDigitFn (andthenFn hexDigitFn hexDigitFn)) c (s.next' input i h)
+    else if inString && (curr == '\n' || curr == '\r') then
+      stringGapFn false false c s
     else
       s.mkUnexpectedError "invalid escape sequence"
 
@@ -583,7 +618,14 @@ def isQuotableCharDefault (c : Char) : Bool :=
   c == '\\' || c == '\"' || c == '\'' || c == 'r' || c == 'n' || c == 't'
 
 def quotedCharFn : ParserFn :=
-  quotedCharCoreFn isQuotableCharDefault
+  quotedCharCoreFn isQuotableCharDefault false
+
+/--
+Like `quotedCharFn` but enables escapes that are only valid inside strings.
+In particular, string gaps (`"\" newline whitespace*`).
+-/
+def quotedStringFn : ParserFn :=
+  quotedCharCoreFn isQuotableCharDefault true
 
 /-- Push `(Syntax.node tk <new-atom>)` onto syntax stack if parse was successful. -/
 def mkNodeToken (n : SyntaxNodeKind) (startPos : String.Pos) : ParserFn := fun c s => Id.run do
@@ -624,8 +666,92 @@ partial def strLitFnAux (startPos : String.Pos) : ParserFn := fun c s =>
     let s    := s.setPos (input.next' i h)
     if curr == '\"' then
       mkNodeToken strLitKind startPos c s
-    else if curr == '\\' then andthenFn quotedCharFn (strLitFnAux startPos) c s
+    else if curr == '\\' then andthenFn quotedStringFn (strLitFnAux startPos) c s
     else strLitFnAux startPos c s
+
+/--
+Raw strings have the syntax `r##...#"..."#...##` with zero or more `#`'s.
+If we are looking at a valid start to a raw string (`r##...#"`),
+returns true.
+We assume `i` begins at the position immediately after `r`.
+-/
+partial def isRawStrLitStart (input : String) (i : String.Pos) : Bool :=
+  if h : input.atEnd i then false
+  else
+    let curr := input.get' i h
+    if curr == '#' then
+      isRawStrLitStart input (input.next' i h)
+    else
+      curr == '"'
+
+/--
+Parses a raw string literal assuming `isRawStrLitStart` has returned true.
+The `startPos` is the start of the raw string (at the `r`).
+The parser state is assumed to be immediately after the `r`.
+-/
+partial def rawStrLitFnAux (startPos : String.Pos) : ParserFn := initState 0
+where
+  /--
+  Gives the "unterminated raw string literal" error.
+  -/
+  errorUnterminated (s : ParserState) := s.mkUnexpectedErrorAt "unterminated raw string literal" startPos
+  /--
+  Parses the `#`'s and `"` at the beginning of the raw string.
+  The `num` variable counts the number of `#`s after the `r`.
+  -/
+  initState (num : Nat) : ParserFn := fun c s =>
+    let input := c.input
+    let i     := s.pos
+    if h : input.atEnd i then errorUnterminated s
+    else
+      let curr := input.get' i h
+      let s    := s.setPos (input.next' i h)
+      if curr == '#' then
+        initState (num + 1) c s
+      else if curr == '"' then
+        normalState num c s
+      else
+        -- This should not occur, since we assume `isRawStrLitStart` succeeded.
+        errorUnterminated s
+  /--
+  Parses characters after the first `"`. If we need to start counting `#`'s to decide if we are closing
+  the raw string literal, we switch to `closingState`.
+  -/
+  normalState (num : Nat) : ParserFn := fun c s =>
+    let input := c.input
+    let i     := s.pos
+    if h : input.atEnd i then errorUnterminated s
+    else
+      let curr := input.get' i h
+      let s    := s.setPos (input.next' i h)
+      if curr == '\"' then
+        if num == 0 then
+          mkNodeToken strLitKind startPos c s
+        else
+          closingState num 0 c s
+      else
+        normalState num c s
+  /--
+  Parses `#` characters immediately after a `"`.
+  The `closingNum` variable counts the number of `#`s seen after the `"`.
+  Note: `num > 0` since the `num = 0` case is entirely handled by `normalState`.
+  -/
+  closingState (num : Nat) (closingNum : Nat) : ParserFn := fun c s =>
+    let input := c.input
+    let i     := s.pos
+    if h : input.atEnd i then errorUnterminated s
+    else
+      let curr := input.get' i h
+      let s    := s.setPos (input.next' i h)
+      if curr == '#' then
+        if closingNum + 1 == num then
+          mkNodeToken strLitKind startPos c s
+        else
+          closingState num (closingNum + 1) c s
+      else if curr == '\"' then
+        closingState num 0 c s
+      else
+        normalState num c s
 
 def decimalNumberFn (startPos : String.Pos) (c : ParserContext) : ParserState → ParserState := fun s =>
   let s     := takeWhileFn (fun c => c.isDigit) c s
@@ -820,6 +946,8 @@ private def tokenFnAux : ParserFn := fun c s =>
     numberFnAux c s
   else if curr == '`' && isIdFirstOrBeginEscape (getNext input i) then
     nameLitAux i c s
+  else if curr == 'r' && isRawStrLitStart input (input.next i) then
+    rawStrLitFnAux i c (s.next input i)
   else
     let tk := c.tokens.matchPrefix input i
     identFnAux i tk .anonymous c s

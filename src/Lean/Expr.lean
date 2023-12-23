@@ -60,7 +60,7 @@ def bar ⦃x : Nat⦄ : Nat := x
 #check bar -- bar : ⦃x : Nat⦄ → Nat
 ```
 
-See also the Lean manual: https://lean-lang.org/lean4/doc/expressions.html#implicit-arguments
+See also [the Lean manual](https://lean-lang.org/lean4/doc/expressions.html#implicit-arguments).
 -/
 inductive BinderInfo where
   /-- Default binder annotation, e.g. `(x : α)` -/
@@ -300,8 +300,8 @@ inductive Expr where
   above it (i.e. introduced by a `lam`, `forallE`, or `letE`).
 
   The `deBruijnIndex` parameter is the *de-Bruijn* index for the bound
-  variable. See [here](https://en.wikipedia.org/wiki/De_Bruijn_index)
-  for additional information on de-Bruijn indexes.
+  variable. See [the Wikipedia page on de-Bruijn indices](https://en.wikipedia.org/wiki/De_Bruijn_index)
+  for additional information.
 
   For example, consider the expression `fun x : Nat => forall y : Nat, x = y`.
   The `x` and `y` variables in the equality expression are constructed
@@ -319,11 +319,11 @@ inductive Expr where
   | bvar (deBruijnIndex : Nat)
 
   /--
-  The `fvar` constructor represent free variables. These /free/ variable
+  The `fvar` constructor represent free variables. These *free* variable
   occurrences are not bound by an earlier `lam`, `forallE`, or `letE`
   constructor and its binder exists in a local context only.
 
-  Note that Lean uses the /locally nameless approach/. See [here](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.365.2479&rep=rep1&type=pdf)
+  Note that Lean uses the *locally nameless approach*. See [McBride and McKinna](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.365.2479&rep=rep1&type=pdf)
   for additional details.
 
   When "visiting" the body of a binding expression (i.e. `lam`, `forallE`, or `letE`),
@@ -361,7 +361,7 @@ inductive Expr where
   A function application.
 
   For example, the natural number one, i.e. `Nat.succ Nat.zero` is represented as
-  `Expr.app (.const `Nat.succ []) (.const .zero [])`
+  ``Expr.app (.const `Nat.succ []) (.const .zero [])``.
   Note that multiple arguments are represented using partial application.
 
   For example, the two argument application `f x y` is represented as
@@ -387,15 +387,15 @@ inductive Expr where
 
   For example:
   - `forall x : Prop, x ∧ x`:
-  ```lean
-  Expr.forallE `x (.sort .zero)
-    (.app (.app (.const `And []) (.bvar 0)) (.bvar 0)) .default
-  ```
+    ```lean
+    Expr.forallE `x (.sort .zero)
+      (.app (.app (.const `And []) (.bvar 0)) (.bvar 0)) .default
+    ```
   - `Nat → Bool`:
-  ```lean
-  Expr.forallE `a (.const `Nat [])
-    (.const `Bool []) .default
-  ```
+    ```lean
+    Expr.forallE `a (.const `Nat [])
+      (.const `Bool []) .default
+    ```
   -/
   | forallE (binderName : Name) (binderType : Expr) (body : Expr) (binderInfo : BinderInfo)
 
@@ -450,11 +450,11 @@ inductive Expr where
   The type of `struct` must be an structure-like inductive type. That is, it has only one
   constructor, is not recursive, and it is not an inductive predicate. The kernel and elaborators
   check whether the `typeName` matches the type of `struct`, and whether the (zero-based) index
-  is valid (i.e., it is smaller than the numbef of constructor fields).
+  is valid (i.e., it is smaller than the number of constructor fields).
   When exporting Lean developments to other systems, `proj` can be replaced with `typeName`.`rec`
   applications.
 
-  Example, given `a : Nat x Bool`, `a.1` is represented as
+  Example, given `a : Nat × Bool`, `a.1` is represented as
   ```
   .proj `Prod 0 a
   ```
@@ -774,8 +774,8 @@ instance : BEq Expr where
   beq := Expr.eqv
 
 /--
-Return true iff `a` and `b` are equal.
-Binder names and annotations are taking into account.
+Return `true` iff `a` and `b` are equal.
+Binder names and annotations are taken into account.
 -/
 @[extern "lean_expr_equal"]
 opaque equal (a : @& Expr) (b : @& Expr) : Bool
@@ -831,7 +831,7 @@ def isConst : Expr → Bool
   | _        => false
 
 /--
-Return `true` if the given expression is a constant of the give name.
+Return `true` if the given expression is a constant of the given name.
 Examples:
 - `` (.const `Nat []).isConstOf `Nat `` is `true`
 - `` (.const `Nat []).isConstOf `False `` is `false`
@@ -1653,6 +1653,47 @@ def setAppPPExplicitForExposingMVars (e : Expr) : Expr :=
     mkAppN f args |>.setPPExplicit true
   | _      => e
 
+/--
+Returns true if `e` is a `let_fun` expression, which is an expression of the form `letFun v f`.
+Ideally `f` is a lambda, but we do not require that here.
+Warning: if the `let_fun` is applied to additional arguments (such as in `(let_fun f := id; id) 1`), this function returns `false`.
+-/
+def isLetFun (e : Expr) : Bool := e.isAppOfArity ``letFun 4
+
+/--
+Recognizes a `let_fun` expression.
+For `let_fun n : t := v; b`, returns `some (n, t, v, b)`, which are the first four arguments to `Lean.Expr.letE`.
+Warning: if the `let_fun` is applied to additional arguments (such as in `(let_fun f := id; id) 1`), this function returns `none`.
+
+`let_fun` expressions are encoded as `letFun v (fun (n : t) => b)`.
+They can be created using `Lean.Meta.mkLetFun`.
+
+If in the encoding of `let_fun` the last argument to `letFun` is eta reduced, this returns `Name.anonymous` for the binder name.
+-/
+def letFun? (e : Expr) : Option (Name × Expr × Expr × Expr) :=
+  match e with
+  | .app (.app (.app (.app (.const ``letFun _) t) _β) v) f =>
+    match f with
+    | .lam n _ b _ => some (n, t, v, b)
+    | _ => some (.anonymous, t, v, .app f (.bvar 0))
+  | _ => none
+
+/--
+Like `Lean.Expr.letFun?`, but handles the case when the `let_fun` expression is possibly applied to additional arguments.
+Returns those arguments in addition to the values returned by `letFun?`.
+-/
+def letFunAppArgs? (e : Expr) : Option (Array Expr × Name × Expr × Expr × Expr) := do
+  guard <| 4 ≤ e.getAppNumArgs
+  guard <| e.isAppOf ``letFun
+  let args := e.getAppArgs
+  let t := args[0]!
+  let v := args[2]!
+  let f := args[3]!
+  let rest := args.extract 4 args.size
+  match f with
+  | .lam n _ b _ => some (rest, n, t, v, b)
+  | _ => some (rest, .anonymous, t, v, .app f (.bvar 0))
+
 end Expr
 
 /--
@@ -1669,28 +1710,6 @@ def annotation? (kind : Name) (e : Expr) : Option Expr :=
   match e with
   | .mdata d b => if d.size == 1 && d.getBool kind false then some b else none
   | _          => none
-
-/--
-Annotate `e` with the `let_fun` annotation. This annotation is used as hint for the delaborator.
-If `e` is of the form `(fun x : t => b) v`, then `mkLetFunAnnotation e` is delaborated at
-`let_fun x : t := v; b`
--/
-def mkLetFunAnnotation (e : Expr) : Expr :=
-  mkAnnotation `let_fun e
-
-/--
-Return `some e'` if `e = mkLetFunAnnotation e'`
--/
-def letFunAnnotation? (e : Expr) : Option Expr :=
-  annotation? `let_fun e
-
-/--
-Return true if `e = mkLetFunAnnotation e'`, and `e'` is of the form `(fun x : t => b) v`
--/
-def isLetFun (e : Expr) : Bool :=
-  match letFunAnnotation? e with
-  | none   => false
-  | some e => e.isApp && e.appFn!.isLambda
 
 /--
 Auxiliary annotation used to mark terms marked with the "inaccessible" annotation `.(t)` and

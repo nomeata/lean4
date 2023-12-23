@@ -66,6 +66,19 @@ example (b : Bool) : Function.const Bool 10 b = 10 :=
 @[inline] def Function.const {α : Sort u} (β : Sort v) (a : α) : β → α :=
   fun _ => a
 
+/--
+The encoding of `let_fun x := v; b` is `letFun v (fun x => b)`.
+This is equal to `(fun x => b) v`, so the value of `x` is not accessible to `b`.
+This is in contrast to `let x := v; b`, where the value of `x` is accessible to `b`.
+
+There is special support for `letFun`.
+Both WHNF and `simp` are aware of `letFun` and can reduce it when zeta reduction is enabled,
+despite the fact it is marked `irreducible`.
+For metaprogramming, the function `Lean.Expr.letFun?` can be used to recognize a `let_fun` expression
+to extract its parts as if it were a `let` expression.
+-/
+@[irreducible] def letFun {α : Sort u} {β : α → Sort v} (v : α) (f : (x : α) → β x) : β v := f v
+
 set_option checkBinderAnnotations false in
 /--
 `inferInstance` synthesizes a value of any target type by typeclass
@@ -926,7 +939,9 @@ or derive `i < arr.size` from some other proposition that we are checking in the
 return `t` or `e` depending on whether `c` is true or false. The explicit argument
 `c : Prop` does not have any actual computational content, but there is an additional
 `[Decidable c]` argument synthesized by typeclass inference which actually
-determines how to evaluate `c` to true or false.
+determines how to evaluate `c` to true or false. Write `if h : c then t else e`
+instead for a "dependent if-then-else" `dite`, which allows `t`/`e` to use the fact
+that `c` is true/false.
 
 Because lean uses a strict (call-by-value) evaluation strategy, the signature of this
 function is problematic in that it would require `t` and `e` to be evaluated before
@@ -2211,9 +2226,10 @@ returns `a` if `opt = some a` and `dflt` otherwise.
 This function is `@[macro_inline]`, so `dflt` will not be evaluated unless
 `opt` turns out to be `none`.
 -/
-@[macro_inline] def Option.getD : Option α → α → α
-  | some x, _ => x
-  | none,   e => e
+@[macro_inline] def Option.getD (opt : Option α) (dflt : α) : α :=
+  match opt with
+  | some x => x
+  | none => dflt
 
 /--
 Map a function over an `Option` by applying the function to the contained
@@ -2546,13 +2562,22 @@ is not observable from lean code. Arrays perform best when unshared; as long
 as they are used "linearly" all updates will be performed destructively on the
 array, so it has comparable performance to mutable arrays in imperative
 programming languages.
+
+From the point of view of proofs `Array α` is just a wrapper around `List α`.
 -/
 structure Array (α : Type u) where
-  /-- Convert a `List α` into an `Array α`. This function is overridden
-  to `List.toArray` and is O(n) in the length of the list. -/
+  /--
+  Converts a `List α` into an `Array α`.
+
+  At runtime, this constructor is implemented by `List.toArray` and is O(n) in the length of the
+  list.
+  -/
   mk ::
-  /-- Convert an `Array α` into a `List α`. This function is overridden
-  to `Array.toList` and is O(n) in the length of the list. -/
+  /--
+  Converts a `Array α` into an `List α`.
+
+  At runtime, this projection is implemented by `Array.toList` and is O(n) in the length of the
+  array. -/
   data : List α
 
 attribute [extern "lean_array_data"] Array.data
@@ -2700,12 +2725,9 @@ def List.redLength : List α → Nat
   | nil       => 0
   | cons _ as => as.redLength.succ
 
-/--
-Convert a `List α` into an `Array α`. This is O(n) in the length of the list.
-
-This function is exported to C, where it is called by `Array.mk`
-(the constructor) to implement this functionality.
--/
+/-- Convert a `List α` into an `Array α`. This is O(n) in the length of the list.  -/
+-- This function is exported to C, where it is called by `Array.mk`
+-- (the constructor) to implement this functionality.
 @[inline, match_pattern, export lean_list_to_array]
 def List.toArray (as : List α) : Array α :=
   as.toArrayAux (Array.mkEmpty as.redLength)

@@ -8,6 +8,130 @@ This file contains work-in-progress notes for the upcoming release, as well as p
 Please check the [releases](https://github.com/leanprover/lean4/releases) page for the current status
 of each version.
 
+v4.5.0
+---------
+
+* Modify the lexical syntax of string literals to have string gaps, which are escape sequences of the form `"\" newline whitespace*`.
+  These have the interpetation of an empty string and allow a string to flow across multiple lines without introducing additional whitespace.
+  The following is equivalent to `"this is a string"`.
+  ```lean
+  "this is \
+     a string"
+  ```
+  [PR #2821](https://github.com/leanprover/lean4/pull/2821) and [RFC #2838](https://github.com/leanprover/lean4/issues/2838).
+
+* Add raw string literal syntax. For example, `r"\n"` is equivalent to `"\\n"`, with no escape processing.
+  To include double quote characters in a raw string one can add sufficiently many `#` characters before and after
+  the bounding `"`s, as in `r#"the "the" is in quotes"#` for `"the \"the\" is in quotes"`.
+  [PR #2929](https://github.com/leanprover/lean4/pull/2929) and [issue #1422](https://github.com/leanprover/lean4/issues/1422).
+
+* The low-level `termination_by'` clause is no longer supported.
+
+  Migration guide: Use `termination_by` instead, e.g.:
+  ```diff
+  -termination_by' measure (fun ⟨i, _⟩ => as.size - i)
+  +termination_by go i _ => as.size - i
+  ```
+
+  If the well-founded relation you want to use is not the one that the
+  `WellFoundedRelation` type class would infer for your termination argument,
+  you can use `WellFounded.wrap` from the std libarary to explicitly give one:
+  ```diff
+  -termination_by' ⟨r, hwf⟩
+  +termination_by _ x => hwf.wrap x
+  ```
+
+* Support snippet edits in LSP `TextEdit`s. See `Lean.Lsp.SnippetString` for more details.
+
+* Deprecations and changes in the widget API.
+  - `Widget.UserWidgetDefinition` is deprecated in favour of `Widget.Module`. The annotation `@[widget]` is deprecated in favour of `@[widget_module]`. To migrate a definition of type `UserWidgetDefinition`, remove the `name` field and replace the type with `Widget.Module`. Removing the `name` results in a title bar no longer being drawn above your panel widget. To add it back, draw it as part of the component using `<details open=true><summary class='mv2 pointer'>{name}</summary>{rest_of_widget}</details>`. See an example migration [here](https://github.com/leanprover/std4/pull/475/files#diff-857376079661a0c28a53b7ff84701afabbdf529836a6944d106c5294f0e68109R43-R83).
+  - The new command `show_panel_widgets` allows displaying always-on and locally-on panel widgets.
+  - `RpcEncodable` widget props can now be stored in the infotree.
+  - See [RFC 2963](https://github.com/leanprover/lean4/issues/2963) for more details and motivation. 
+
+* If no usable lexicographic order can be found automatically for a termination proof, explain why.
+  See [feat: GuessLex: if no measure is found, explain why](https://github.com/leanprover/lean4/pull/2960).
+
+* Option to print [inferred termination argument](https://github.com/leanprover/lean4/pull/3012).
+  With `set_option showInferredTerminationBy true` you will get messages like
+  ```
+  Inferred termination argument:
+  termination_by
+  ackermann n m => (sizeOf n, sizeOf m)
+  ```
+  for automatically generated `termination_by` clauses.
+
+* More detailed error messages for [invalid mutual blocks](https://github.com/leanprover/lean4/pull/2949).
+
+* [Multiple](https://github.com/leanprover/lean4/pull/2923) [improvements](https://github.com/leanprover/lean4/pull/2969) to the output of `simp?` and `simp_all?`.
+
+* Tactics with `withLocation *` [no longer fail](https://github.com/leanprover/lean4/pull/2917) if they close the main goal.
+
+* Implementation of a `test_extern` command for writing tests for `@[extern]` and `@[implemented_by]` functions.
+  Usage is 
+  ```
+  import Lean.Util.TestExtern
+
+  test_extern Nat.add 17 37
+  ```
+  The head symbol must be the constant with the `@[extern]` or `@[implemented_by]` attribute. The return type must have a `DecidableEq` instance.
+
+Bug fixes for 
+[#2853](https://github.com/leanprover/lean4/issues/2853), [#2953](https://github.com/leanprover/lean4/issues/2953), [#2966](https://github.com/leanprover/lean4/issues/2966), 
+[#2971](https://github.com/leanprover/lean4/issues/2971), [#2990](https://github.com/leanprover/lean4/issues/2990), [#3094](https://github.com/leanprover/lean4/issues/3094).
+
+Bug fix for [eager evaluation of default value](https://github.com/leanprover/lean4/pull/3043) in `Option.getD`.
+Avoid [panic in `leanPosToLspPos`](https://github.com/leanprover/lean4/pull/3071) when file source is unavailable.
+Improve [short-circuiting behavior](https://github.com/leanprover/lean4/pull/2972) for `List.all` and `List.any`.
+
+Several Lake bug fixes: [#3036](https://github.com/leanprover/lean4/issues/3036), [#3064](https://github.com/leanprover/lean4/issues/3064), [#3069](https://github.com/leanprover/lean4/issues/3069).
+
+v4.4.0
+---------
+
+* Lake and the language server now support per-package server options using the `moreServerOptions` config field, as well as options that apply to both the language server and `lean` using the `leanOptions` config field. Setting either of these fields instead of `moreServerArgs` ensures that viewing files from a dependency uses the options for that dependency. Additionally, `moreServerArgs` is being deprecated in favor of the `moreGlobalServerArgs` field. See PR [#2858](https://github.com/leanprover/lean4/pull/2858).
+  
+  A Lakefile with the following deprecated package declaration:
+  ```lean
+  def moreServerArgs := #[
+    "-Dpp.unicode.fun=true"
+  ]
+  def moreLeanArgs := moreServerArgs
+  
+  package SomePackage where
+    moreServerArgs := moreServerArgs
+    moreLeanArgs := moreLeanArgs
+  ```
+  
+  ... can be updated to the following package declaration to use per-package options:
+  ```lean
+  package SomePackage where
+    leanOptions := #[⟨`pp.unicode.fun, true⟩]
+  ```
+* [Rename request handler](https://github.com/leanprover/lean4/pull/2462).
+* [Import auto-completion](https://github.com/leanprover/lean4/pull/2904).
+* [`pp.beta`` to apply beta reduction when pretty printing](https://github.com/leanprover/lean4/pull/2864).
+* [Embed and check githash in .olean](https://github.com/leanprover/lean4/pull/2766).
+* [Guess lexicographic order for well-founded recursion](https://github.com/leanprover/lean4/pull/2874).
+* [Allow trailing comma in tuples, lists, and tactics](https://github.com/leanprover/lean4/pull/2643).
+
+Bug fixes for [#2628](https://github.com/leanprover/lean4/issues/2628), [#2883](https://github.com/leanprover/lean4/issues/2883),
+[#2810](https://github.com/leanprover/lean4/issues/2810), [#2925](https://github.com/leanprover/lean4/issues/2925), and [#2914](https://github.com/leanprover/lean4/issues/2914).
+
+**Lake:**
+
+* `lake init .` and a bare `lake init` and will now use the current directory as the package name. [#2890](https://github.com/leanprover/lean4/pull/2890)
+* `lake new` and `lake init` will now produce errors on invalid package names such as `..`, `foo/bar`, `Init`, `Lean`, `Lake`, and `Main`. See issue [#2637](https://github.com/leanprover/lean4/issues/2637) and PR [#2890](https://github.com/leanprover/lean4/pull/2890).
+* `lean_lib` no longer converts its name to upper camel case (e.g., `lean_lib bar` will include modules named `bar.*` rather than `Bar.*`). See issue [#2567](https://github.com/leanprover/lean4/issues/2567) and PR [#2889](https://github.com/leanprover/lean4/pull/2889).
+* Lean and Lake now properly support non-identifier library names (e.g., `lake new 123-hello` and `import «123Hello»` now work correctly). See issue [#2865](https://github.com/leanprover/lean4/issues/2865) and PR [#2889](https://github.com/leanprover/lean4/pull/2888).
+* Lake now filters the environment extensions loaded from a compiled configuration (`lakefile.olean`) to include only those relevant to Lake's workspace loading process. This resolves segmentation faults caused by environment extension type mismatches (e.g., when defining custom elaborators via `elab` in configurations). See issue [#2632](https://github.com/leanprover/lean4/issues/2632) and PR [#2896](https://github.com/leanprover/lean4/pull/2896).
+* Cloud releases will now properly be re-unpacked if the build directory is removed. See PR [#2928](https://github.com/leanprover/lean4/pull/2928).
+* Lake's `math` template has been simplified. See PR [#2930](https://github.com/leanprover/lean4/pull/2930).
+* `lake exe <target>` now parses `target` like a build target (as the help text states it should) rather than as a basic name. For example, `lake exe @mathlib/runLinter` should now work. See PR [#2932](https://github.com/leanprover/lean4/pull/2932).
+* `lake new foo.bar [std]` now generates executables named `foo-bar` and `lake new foo.bar exe` properly creates `foo/bar.lean`. See PR [#2932](https://github.com/leanprover/lean4/pull/2932).
+* Later packages and libraries in the dependency tree are now preferred over earlier ones. That is, the later ones "shadow" the earlier ones. Such an ordering is more consistent with how declarations generally work in programming languages. This will break any package that relied on the previous ordering. See issue [#2548](https://github.com/leanprover/lean4/issues/2548) and PR [#2937](https://github.com/leanprover/lean4/pull/2937).
+* Executable roots are no longer mistakenly treated as importable. They will no longer be picked up by `findModule?`. See PR [#2937](https://github.com/leanprover/lean4/pull/2937).
+
 v4.3.0
 ---------
 
