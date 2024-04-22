@@ -16,6 +16,6 @@ jobs:
            grep -v -x -F stage0/src/lean.mk.in |
            grep -q .
         then
-          echo "Found stage0 updates, please do not merge using the merge queue" | tee $GITHUB_STEP_SUMMARY
+          echo "Found stage0 updates, please do not merge using the merge queue" | tee "$GITHUB_STEP_SUMMARY"
           exit 1
         fi
