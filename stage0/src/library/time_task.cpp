@@ -7,7 +7,7 @@ Author: Sebastian Ullrich
 #include <string>
 #include <map>
 #include "library/time_task.h"
-#include "kernel/trace.h"
+#include "library/trace.h"
 
 namespace lean {
 

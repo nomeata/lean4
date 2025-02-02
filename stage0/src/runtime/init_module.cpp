@@ -13,7 +13,6 @@ Author: Leonardo de Moura
 #include "runtime/process.h"
 #include "runtime/mutex.h"
 #include "runtime/init_module.h"
-#include "runtime/libuv.h"
 
 namespace lean {
 extern "C" LEAN_EXPORT void lean_initialize_runtime_module() {
@@ -25,7 +24,6 @@ extern "C" LEAN_EXPORT void lean_initialize_runtime_module() {
     initialize_mutex();
     initialize_process();
     initialize_stack_overflow();
-    initialize_libuv();
 }
 void initialize_runtime_module() {
     lean_initialize_runtime_module();

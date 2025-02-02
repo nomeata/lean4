@@ -1,6 +1,6 @@
 // Lean compiler output
 // Module: Init.Data.Nat.Bitwise.Basic
-// Imports: Init.Data.Nat.Basic Init.Data.Nat.Div.Basic Init.Coe
+// Imports: Init.Data.Nat.Basic Init.Data.Nat.Div Init.Coe
 #include <lean/lean.h>
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -16,6 +16,7 @@ extern "C" {
 LEAN_EXPORT lean_object* l_Nat_shiftRight___boxed(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Nat_instAndOp;
 lean_object* lean_nat_shiftr(lean_object*, lean_object*);
+uint8_t lean_nat_dec_eq(lean_object*, lean_object*);
 static lean_object* l_Nat_instXor___closed__1;
 lean_object* lean_nat_div(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Nat_bitwise___boxed(lean_object*, lean_object*, lean_object*);
@@ -283,7 +284,7 @@ _start:
 lean_object* x_3; lean_object* x_4; lean_object* x_5; lean_object* x_6; uint8_t x_7; 
 x_3 = lean_nat_shiftr(x_1, x_2);
 x_4 = lean_unsigned_to_nat(1u);
-x_5 = lean_nat_land(x_4, x_3);
+x_5 = lean_nat_land(x_3, x_4);
 lean_dec(x_3);
 x_6 = lean_unsigned_to_nat(0u);
 x_7 = lean_nat_dec_eq(x_5, x_6);
@@ -314,7 +315,7 @@ return x_4;
 }
 }
 lean_object* initialize_Init_Data_Nat_Basic(uint8_t builtin, lean_object*);
-lean_object* initialize_Init_Data_Nat_Div_Basic(uint8_t builtin, lean_object*);
+lean_object* initialize_Init_Data_Nat_Div(uint8_t builtin, lean_object*);
 lean_object* initialize_Init_Coe(uint8_t builtin, lean_object*);
 static bool _G_initialized = false;
 LEAN_EXPORT lean_object* initialize_Init_Data_Nat_Bitwise_Basic(uint8_t builtin, lean_object* w) {
@@ -324,7 +325,7 @@ _G_initialized = true;
 res = initialize_Init_Data_Nat_Basic(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
-res = initialize_Init_Data_Nat_Div_Basic(builtin, lean_io_mk_world());
+res = initialize_Init_Data_Nat_Div(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 res = initialize_Init_Coe(builtin, lean_io_mk_world());

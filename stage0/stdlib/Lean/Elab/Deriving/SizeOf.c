@@ -13,11 +13,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 lean_object* l_Lean_Meta_mkSizeOfInstances(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 uint8_t lean_usize_dec_eq(size_t, size_t);
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
-lean_object* l_Lean_Environment_find_x3f(lean_object*, lean_object*);
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
+lean_object* lean_environment_find(lean_object*, lean_object*);
 static lean_object* l_Lean_Elab_Deriving_SizeOf_initFn____x40_Lean_Elab_Deriving_SizeOf___hyg_125____closed__1;
 LEAN_EXPORT lean_object* l_Lean_isInductive___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__2(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler(lean_object*, lean_object*, lean_object*, lean_object*);
@@ -27,21 +26,21 @@ LEAN_EXPORT lean_object* l_Array_anyMUnsafe_any___at_Lean_Elab_Deriving_SizeOf_m
 LEAN_EXPORT lean_object* l_Lean_isInductive___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__2___boxed(lean_object*, lean_object*, lean_object*, lean_object*);
 lean_object* l_Lean_Elab_Command_liftTermElabM___rarg(lean_object*, lean_object*, lean_object*, lean_object*);
 lean_object* lean_st_ref_get(lean_object*, lean_object*);
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(lean_object*, lean_object*, lean_object*, size_t, size_t, lean_object*, lean_object*, lean_object*, lean_object*);
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___boxed(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Lean_Elab_Deriving_SizeOf_initFn____x40_Lean_Elab_Deriving_SizeOf___hyg_125_(lean_object*);
 lean_object* l_Lean_Name_str___override(lean_object*, lean_object*);
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_Array_anyMUnsafe_any___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__3(lean_object*, size_t, size_t, lean_object*, lean_object*, lean_object*);
 uint8_t lean_nat_dec_lt(lean_object*, lean_object*);
 static lean_object* l_Lean_Elab_Deriving_SizeOf_initFn____x40_Lean_Elab_Deriving_SizeOf___hyg_125____closed__3;
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(lean_object*, size_t, size_t, lean_object*, lean_object*, lean_object*, lean_object*);
 size_t lean_usize_add(size_t, size_t);
 lean_object* lean_array_uget(lean_object*, size_t);
-size_t lean_array_size(lean_object*);
 lean_object* lean_array_get_size(lean_object*);
 static lean_object* l_Lean_Elab_Deriving_SizeOf_initFn____x40_Lean_Elab_Deriving_SizeOf___hyg_125____closed__2;
 uint8_t lean_usize_dec_lt(size_t, size_t);
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8) {
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8) {
 _start:
 {
 lean_object* x_9; 
@@ -49,61 +48,61 @@ x_9 = l_Lean_Meta_mkSizeOfInstances(x_1, x_4, x_5, x_6, x_7, x_8);
 return x_9;
 }
 }
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(lean_object* x_1, lean_object* x_2, lean_object* x_3, size_t x_4, size_t x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8, lean_object* x_9) {
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(lean_object* x_1, size_t x_2, size_t x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7) {
 _start:
 {
-uint8_t x_10; 
-x_10 = lean_usize_dec_lt(x_5, x_4);
-if (x_10 == 0)
+uint8_t x_8; 
+x_8 = lean_usize_dec_lt(x_3, x_2);
+if (x_8 == 0)
 {
-lean_object* x_11; 
-x_11 = lean_alloc_ctor(0, 2, 0);
-lean_ctor_set(x_11, 0, x_6);
-lean_ctor_set(x_11, 1, x_9);
-return x_11;
+lean_object* x_9; 
+x_9 = lean_alloc_ctor(0, 2, 0);
+lean_ctor_set(x_9, 0, x_4);
+lean_ctor_set(x_9, 1, x_7);
+return x_9;
 }
 else
 {
-lean_object* x_12; lean_object* x_13; lean_object* x_14; 
-lean_dec(x_6);
-x_12 = lean_array_uget(x_3, x_5);
-x_13 = lean_alloc_closure((void*)(l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed), 8, 1);
-lean_closure_set(x_13, 0, x_12);
-x_14 = l_Lean_Elab_Command_liftTermElabM___rarg(x_13, x_7, x_8, x_9);
-if (lean_obj_tag(x_14) == 0)
+lean_object* x_10; lean_object* x_11; lean_object* x_12; 
+lean_dec(x_4);
+x_10 = lean_array_uget(x_1, x_3);
+x_11 = lean_alloc_closure((void*)(l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed), 8, 1);
+lean_closure_set(x_11, 0, x_10);
+x_12 = l_Lean_Elab_Command_liftTermElabM___rarg(x_11, x_5, x_6, x_7);
+if (lean_obj_tag(x_12) == 0)
 {
-lean_object* x_15; size_t x_16; size_t x_17; lean_object* x_18; 
-x_15 = lean_ctor_get(x_14, 1);
-lean_inc(x_15);
-lean_dec(x_14);
-x_16 = 1;
-x_17 = lean_usize_add(x_5, x_16);
-x_18 = lean_box(0);
-x_5 = x_17;
-x_6 = x_18;
-x_9 = x_15;
+lean_object* x_13; size_t x_14; size_t x_15; lean_object* x_16; 
+x_13 = lean_ctor_get(x_12, 1);
+lean_inc(x_13);
+lean_dec(x_12);
+x_14 = 1;
+x_15 = lean_usize_add(x_3, x_14);
+x_16 = lean_box(0);
+x_3 = x_15;
+x_4 = x_16;
+x_7 = x_13;
 goto _start;
 }
 else
 {
-uint8_t x_20; 
-x_20 = !lean_is_exclusive(x_14);
-if (x_20 == 0)
+uint8_t x_18; 
+x_18 = !lean_is_exclusive(x_12);
+if (x_18 == 0)
 {
-return x_14;
+return x_12;
 }
 else
 {
-lean_object* x_21; lean_object* x_22; lean_object* x_23; 
-x_21 = lean_ctor_get(x_14, 0);
-x_22 = lean_ctor_get(x_14, 1);
-lean_inc(x_22);
-lean_inc(x_21);
-lean_dec(x_14);
-x_23 = lean_alloc_ctor(1, 2, 0);
-lean_ctor_set(x_23, 0, x_21);
-lean_ctor_set(x_23, 1, x_22);
-return x_23;
+lean_object* x_19; lean_object* x_20; lean_object* x_21; 
+x_19 = lean_ctor_get(x_12, 0);
+x_20 = lean_ctor_get(x_12, 1);
+lean_inc(x_20);
+lean_inc(x_19);
+lean_dec(x_12);
+x_21 = lean_alloc_ctor(1, 2, 0);
+lean_ctor_set(x_21, 0, x_19);
+lean_ctor_set(x_21, 1, x_20);
+return x_21;
 }
 }
 }
@@ -122,7 +121,7 @@ x_7 = lean_ctor_get(x_5, 0);
 x_8 = lean_ctor_get(x_7, 0);
 lean_inc(x_8);
 lean_dec(x_7);
-x_9 = l_Lean_Environment_find_x3f(x_8, x_1);
+x_9 = lean_environment_find(x_8, x_1);
 if (lean_obj_tag(x_9) == 0)
 {
 uint8_t x_10; lean_object* x_11; 
@@ -168,7 +167,7 @@ lean_dec(x_5);
 x_19 = lean_ctor_get(x_17, 0);
 lean_inc(x_19);
 lean_dec(x_17);
-x_20 = l_Lean_Environment_find_x3f(x_19, x_1);
+x_20 = lean_environment_find(x_19, x_1);
 if (lean_obj_tag(x_20) == 0)
 {
 uint8_t x_21; lean_object* x_22; lean_object* x_23; 
@@ -343,11 +342,12 @@ return x_9;
 else
 {
 lean_object* x_10; size_t x_11; size_t x_12; lean_object* x_13; lean_object* x_14; 
-x_10 = lean_box(0);
-x_11 = lean_array_size(x_1);
+x_10 = lean_array_get_size(x_1);
+x_11 = lean_usize_of_nat(x_10);
+lean_dec(x_10);
 x_12 = 0;
 x_13 = lean_box(0);
-x_14 = l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(x_1, x_10, x_1, x_11, x_12, x_13, x_2, x_3, x_6);
+x_14 = l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(x_1, x_11, x_12, x_13, x_2, x_3, x_6);
 if (lean_obj_tag(x_14) == 0)
 {
 uint8_t x_15; 
@@ -402,31 +402,29 @@ return x_26;
 }
 }
 }
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8) {
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1___boxed(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8) {
 _start:
 {
 lean_object* x_9; 
-x_9 = l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8);
+x_9 = l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___lambda__1(x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8);
 lean_dec(x_3);
 lean_dec(x_2);
 return x_9;
 }
 }
-LEAN_EXPORT lean_object* l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___boxed(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7, lean_object* x_8, lean_object* x_9) {
+LEAN_EXPORT lean_object* l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1___boxed(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4, lean_object* x_5, lean_object* x_6, lean_object* x_7) {
 _start:
 {
-size_t x_10; size_t x_11; lean_object* x_12; 
-x_10 = lean_unbox_usize(x_4);
-lean_dec(x_4);
-x_11 = lean_unbox_usize(x_5);
-lean_dec(x_5);
-x_12 = l_Array_forIn_x27Unsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(x_1, x_2, x_3, x_10, x_11, x_6, x_7, x_8, x_9);
-lean_dec(x_8);
-lean_dec(x_7);
-lean_dec(x_3);
+size_t x_8; size_t x_9; lean_object* x_10; 
+x_8 = lean_unbox_usize(x_2);
 lean_dec(x_2);
+x_9 = lean_unbox_usize(x_3);
+lean_dec(x_3);
+x_10 = l_Array_forInUnsafe_loop___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__1(x_1, x_8, x_9, x_4, x_5, x_6, x_7);
+lean_dec(x_6);
+lean_dec(x_5);
 lean_dec(x_1);
-return x_12;
+return x_10;
 }
 }
 LEAN_EXPORT lean_object* l_Lean_isInductive___at_Lean_Elab_Deriving_SizeOf_mkSizeOfHandler___spec__2___boxed(lean_object* x_1, lean_object* x_2, lean_object* x_3, lean_object* x_4) {
@@ -469,7 +467,7 @@ static lean_object* _init_l_Lean_Elab_Deriving_SizeOf_initFn____x40_Lean_Elab_De
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("SizeOf", 6, 6);
+x_1 = lean_mk_string_from_bytes("SizeOf", 6);
 return x_1;
 }
 }

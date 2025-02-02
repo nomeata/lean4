@@ -9,9 +9,6 @@ Author: Leonardo de Moura
 #include <iostream>
 #ifdef LEAN_WINDOWS
 #include <windows.h>
-# ifdef LEAN_AUTO_THREAD_FINALIZATION
-#include <pthread.h>
-# endif
 #else
 #include <pthread.h>
 #endif

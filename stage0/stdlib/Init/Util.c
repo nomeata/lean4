@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 LEAN_EXPORT lean_object* l_dbgSleep___boxed(lean_object*, lean_object*, lean_object*);
+LEAN_EXPORT lean_object* l_Runtime_markPersistent___boxed(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l___private_Init_Util_0__mkPanicMessageWithDecl___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 static lean_object* l___private_Init_Util_0__mkPanicMessage___closed__3;
 uint8_t lean_usize_dec_eq(size_t, size_t);
@@ -32,14 +33,14 @@ LEAN_EXPORT lean_object* l___private_Init_Util_0__mkPanicMessage(lean_object*, l
 LEAN_EXPORT lean_object* l_panicWithPos___rarg(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_panicWithPos(lean_object*);
 size_t lean_ptr_addr(lean_object*);
-uint8_t lean_is_exclusive_obj(lean_object*);
 lean_object* l_panic___rarg(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_withPtrEqUnsafe___rarg___boxed(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_ptrEq(lean_object*);
-LEAN_EXPORT lean_object* l_isExclusiveUnsafe___boxed(lean_object*, lean_object*);
+LEAN_EXPORT lean_object* l_Runtime_markMultiThreaded___boxed(lean_object*, lean_object*);
 static lean_object* l___private_Init_Util_0__mkPanicMessageWithDecl___closed__1;
 LEAN_EXPORT lean_object* l_panicWithPosWithDecl___rarg___boxed(lean_object*, lean_object*, lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_ptrEqList(lean_object*);
+lean_object* lean_runtime_mark_multi_threaded(lean_object*);
 LEAN_EXPORT lean_object* l_dbgTraceVal___rarg(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l___private_Init_Util_0__mkPanicMessage___boxed(lean_object*, lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_dbgTrace___boxed(lean_object*, lean_object*, lean_object*);
@@ -56,6 +57,7 @@ LEAN_EXPORT lean_object* l_dbgTraceIfShared___boxed(lean_object*, lean_object*, 
 LEAN_EXPORT lean_object* l_withPtrEqDecEq___rarg(lean_object*, lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_withPtrAddrUnsafe(lean_object*, lean_object*);
 lean_object* lean_string_append(lean_object*, lean_object*);
+lean_object* lean_runtime_mark_persistent(lean_object*);
 LEAN_EXPORT lean_object* l_dbgTraceVal___rarg___lambda__1(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_ptrAddrUnsafe___boxed(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_withPtrEqDecEq(lean_object*);
@@ -137,7 +139,7 @@ static lean_object* _init_l___private_Init_Util_0__mkPanicMessage___closed__1() 
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("PANIC at ", 9, 9);
+x_1 = lean_mk_string_from_bytes("PANIC at ", 9);
 return x_1;
 }
 }
@@ -145,7 +147,7 @@ static lean_object* _init_l___private_Init_Util_0__mkPanicMessage___closed__2() 
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(":", 1, 1);
+x_1 = lean_mk_string_from_bytes(":", 1);
 return x_1;
 }
 }
@@ -153,7 +155,7 @@ static lean_object* _init_l___private_Init_Util_0__mkPanicMessage___closed__3() 
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(": ", 2, 2);
+x_1 = lean_mk_string_from_bytes(": ", 2);
 return x_1;
 }
 }
@@ -219,7 +221,7 @@ static lean_object* _init_l___private_Init_Util_0__mkPanicMessageWithDecl___clos
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(" ", 1, 1);
+x_1 = lean_mk_string_from_bytes(" ", 1);
 return x_1;
 }
 }
@@ -293,16 +295,6 @@ size_t x_3; lean_object* x_4;
 x_3 = lean_ptr_addr(x_2);
 lean_dec(x_2);
 x_4 = lean_box_usize(x_3);
-return x_4;
-}
-}
-LEAN_EXPORT lean_object* l_isExclusiveUnsafe___boxed(lean_object* x_1, lean_object* x_2) {
-_start:
-{
-uint8_t x_3; lean_object* x_4; 
-x_3 = lean_is_exclusive_obj(x_2);
-lean_dec(x_2);
-x_4 = lean_box(x_3);
 return x_4;
 }
 }
@@ -515,6 +507,22 @@ x_4 = l_withPtrEqDecEq___rarg(x_1, x_2, x_3);
 lean_dec(x_2);
 lean_dec(x_1);
 return x_4;
+}
+}
+LEAN_EXPORT lean_object* l_Runtime_markMultiThreaded___boxed(lean_object* x_1, lean_object* x_2) {
+_start:
+{
+lean_object* x_3; 
+x_3 = lean_runtime_mark_multi_threaded(x_2);
+return x_3;
+}
+}
+LEAN_EXPORT lean_object* l_Runtime_markPersistent___boxed(lean_object* x_1, lean_object* x_2) {
+_start:
+{
+lean_object* x_3; 
+x_3 = lean_runtime_mark_persistent(x_2);
+return x_3;
 }
 }
 lean_object* initialize_Init_Data_String_Basic(uint8_t builtin, lean_object*);

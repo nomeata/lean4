@@ -73,23 +73,6 @@ size_t get_stack_size(bool main) {
 }
 #endif
 
-#ifndef __has_builtin
-#define __has_builtin(x) 0 /* for non-clang compilers */
-#endif
-
-// taken from https://github.com/llvm/llvm-project/blob/llvmorg-10.0.0-rc1/clang/lib/Basic/Stack.cpp#L24
-static void *get_stack_pointer() {
-#if __GNUC__ || __has_builtin(__builtin_frame_address)
-    return __builtin_frame_address(0);
-#elif defined(_MSC_VER)
-    return _AddressOfReturnAddress();
-#else
-    char x = 0;
-    char *volatile ptr = &x;
-    return ptr;
-#endif
-}
-
 LEAN_THREAD_VALUE(bool, g_stack_info_init, false);
 LEAN_THREAD_VALUE(size_t, g_stack_size, 0);
 LEAN_THREAD_VALUE(size_t, g_stack_base, 0);
@@ -98,7 +81,8 @@ LEAN_THREAD_VALUE(size_t, g_stack_threshold, 0);
 void save_stack_info(bool main) {
     g_stack_info_init = true;
     g_stack_size = get_stack_size(main);
-    g_stack_base = reinterpret_cast<size_t>(get_stack_pointer());
+    char x;
+    g_stack_base = reinterpret_cast<size_t>(&x);
     /* g_stack_threshold is a redundant value used to optimize check_stack */
     g_stack_threshold = g_stack_base + LEAN_STACK_BUFFER_SPACE - g_stack_size;
     if (g_stack_threshold > g_stack_base + LEAN_STACK_BUFFER_SPACE) {
@@ -108,7 +92,8 @@ void save_stack_info(bool main) {
 }
 
 size_t get_used_stack_size() {
-    size_t curr_stack = reinterpret_cast<size_t>(get_stack_pointer());
+    char y;
+    size_t curr_stack = reinterpret_cast<size_t>(&y);
     return g_stack_base - curr_stack;
 }
 
@@ -128,7 +113,8 @@ void throw_stack_space_exception(char const * component_name) {
 void check_stack(char const * component_name) {
     if (!g_stack_info_init)
         save_stack_info(false);
-    size_t curr_stack = reinterpret_cast<size_t>(get_stack_pointer());
+    char y;
+    size_t curr_stack = reinterpret_cast<size_t>(&y);
     if (curr_stack < g_stack_threshold)
         throw_stack_space_exception(component_name);
 }

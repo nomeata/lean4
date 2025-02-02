@@ -9,7 +9,6 @@ Author: Leonardo de Moura
 #include <memory>
 #include <utility>
 #include <algorithm>
-#include "runtime/flet.h"
 #include "util/lbool.h"
 #include "util/name_set.h"
 #include "util/name_generator.h"
@@ -43,7 +42,6 @@ public:
 private:
     bool                      m_st_owner;
     state *                   m_st;
-    diagnostics *             m_diag;
     local_ctx                 m_lctx;
     definition_safety         m_definition_safety;
     /* When `m_lparams != nullptr, the `check` method makes sure all level parameters
@@ -102,14 +100,12 @@ private:
 
     template<typename F> optional<expr> reduce_bin_nat_op(F const & f, expr const & e);
     template<typename F> optional<expr> reduce_bin_nat_pred(F const & f, expr const & e);
-    optional<expr> reduce_pow(expr const & e);
     optional<expr> reduce_nat(expr const & e);
 public:
-    // The following two constructor are used only by the old compiler and should be deleted with it
     type_checker(state & st, local_ctx const & lctx, definition_safety ds = definition_safety::safe);
     type_checker(state & st, definition_safety ds = definition_safety::safe):type_checker(st, local_ctx(), ds) {}
-    type_checker(environment const & env, local_ctx const & lctx, diagnostics * diag = nullptr, definition_safety ds = definition_safety::safe);
-    type_checker(environment const & env, diagnostics * diag = nullptr, definition_safety ds = definition_safety::safe):type_checker(env, local_ctx(), diag, ds) {}
+    type_checker(environment const & env, local_ctx const & lctx, definition_safety ds = definition_safety::safe);
+    type_checker(environment const & env, definition_safety ds = definition_safety::safe):type_checker(env, local_ctx(), ds) {}
     type_checker(type_checker &&);
     type_checker(type_checker const &) = delete;
     ~type_checker();

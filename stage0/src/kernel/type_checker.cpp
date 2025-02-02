@@ -185,7 +185,7 @@ expr type_checker::infer_app(expr const & e, bool infer_only) {
 
 static void mark_used(unsigned n, expr const * fvars, expr const & b, bool * used) {
     if (!has_fvar(b)) return;
-    for_each(b, [&](expr const & x) {
+    for_each(b, [&](expr const & x, unsigned) {
             if (!has_fvar(x)) return false;
             if (is_fvar(x)) {
                 for (unsigned i = 0; i < n; i++) {
@@ -477,11 +477,6 @@ expr type_checker::whnf_core(expr const & e, bool cheap_rec, bool cheap_proj) {
                           cheap_rec, cheap_proj);
         } else if (f == f0) {
             if (auto r = reduce_recursor(e, cheap_rec, cheap_proj)) {
-                if (m_diag) {
-                    auto f = get_app_fn(e);
-                    if (is_constant(f))
-                        m_diag->record_unfold(const_name(f));
-                }
                 /* iota-reduction and quotient reduction rules */
                 return whnf_core(*r, cheap_rec, cheap_proj);
             } else {
@@ -518,12 +513,8 @@ optional<constant_info> type_checker::is_delta(expr const & e) const {
 optional<expr> type_checker::unfold_definition_core(expr const & e) {
     if (is_constant(e)) {
         if (auto d = is_delta(e)) {
-            if (length(const_levels(e)) == d->get_num_lparams()) {
-                if (m_diag) {
-                    m_diag->record_unfold(d->get_name());
-                }
+            if (length(const_levels(e)) == d->get_num_lparams())
                 return some_expr(instantiate_value_lparams(*d, const_levels(e)));
-            }
         }
     }
     return none_expr();
@@ -549,7 +540,7 @@ static expr * g_lean_reduce_bool = nullptr;
 static expr * g_lean_reduce_nat  = nullptr;
 
 namespace ir {
-object * run_boxed_kernel(environment const & env, options const & opts, name const & fn, unsigned n, object **args);
+object * run_boxed(environment const & env, options const & opts, name const & fn, unsigned n, object **args);
 }
 
 expr mk_bool_true();
@@ -560,7 +551,7 @@ optional<expr> reduce_native(environment const & env, expr const & e) {
     expr const & arg = app_arg(e);
     if (!is_constant(arg)) return none_expr();
     if (app_fn(e) == *g_lean_reduce_bool) {
-        object * r = ir::run_boxed_kernel(env, options(), const_name(arg), 0, nullptr);
+        object * r = ir::run_boxed(env, options(), const_name(arg), 0, nullptr);
         if (!lean_is_scalar(r)) {
             lean_dec_ref(r);
             throw kernel_exception(env, "type checker failure, unexpected result value for 'Lean.reduceBool'");
@@ -568,7 +559,7 @@ optional<expr> reduce_native(environment const & env, expr const & e) {
         return lean_unbox(r) == 0 ? some_expr(mk_bool_false()) : some_expr(mk_bool_true());
     }
     if (app_fn(e) == *g_lean_reduce_nat) {
-        object * r = ir::run_boxed_kernel(env, options(), const_name(arg), 0, nullptr);
+        object * r = ir::run_boxed(env, options(), const_name(arg), 0, nullptr);
         if (lean_is_scalar(r) || lean_is_mpz(r)) {
             return some_expr(mk_lit(literal(nat(r))));
         } else {
@@ -593,18 +584,6 @@ template<typename F> optional<expr> type_checker::reduce_bin_nat_op(F const & f,
     nat v1 = get_nat_val(arg1);
     nat v2 = get_nat_val(arg2);
     return some_expr(mk_lit(literal(nat(f(v1.raw(), v2.raw())))));
-}
-
-#define ReducePowMaxExp 1<<24 // TODO: make it configurable
-
-optional<expr> type_checker::reduce_pow(expr const & e) {
-    expr arg1 = whnf(app_arg(app_fn(e)));
-    expr arg2 = whnf(app_arg(e));
-    if (!is_nat_lit_ext(arg2)) return none_expr();
-    nat v1 = get_nat_val(arg1);
-    nat v2 = get_nat_val(arg2);
-    if (v2 > nat(ReducePowMaxExp)) return none_expr();
-    return some_expr(mk_lit(literal(nat(nat_pow(v1.raw(), v2.raw())))));
 }
 
 template<typename F> optional<expr> type_checker::reduce_bin_nat_pred(F const & f, expr const & e) {
@@ -634,7 +613,7 @@ optional<expr> type_checker::reduce_nat(expr const & e) {
         if (f == *g_nat_add) return reduce_bin_nat_op(nat_add, e);
         if (f == *g_nat_sub) return reduce_bin_nat_op(nat_sub, e);
         if (f == *g_nat_mul) return reduce_bin_nat_op(nat_mul, e);
-        if (f == *g_nat_pow) return reduce_pow(e);
+        if (f == *g_nat_pow) return reduce_bin_nat_op(nat_pow, e);
         if (f == *g_nat_gcd) return reduce_bin_nat_op(nat_gcd, e);
         if (f == *g_nat_mod) return reduce_bin_nat_op(nat_mod, e);
         if (f == *g_nat_div) return reduce_bin_nat_op(nat_div, e);
@@ -981,7 +960,6 @@ lbool type_checker::is_def_eq_offset(expr const & t, expr const & s) {
     return l_undef;
 }
 
-/** \remark t_n, s_n are updated. */
 lbool type_checker::lazy_delta_reduction(expr & t_n, expr & s_n) {
     while (true) {
         lbool r = is_def_eq_offset(t_n, s_n);
@@ -1073,8 +1051,7 @@ bool type_checker::is_def_eq_core(expr const & t, expr const & s) {
 
     // Very basic support for proofs by reflection. If `t` has no free variables and `s` is `Bool.true`,
     // we fully reduce `t` and check whether result is `s`.
-    // This code path is taken in particular when using the `decide` tactic, which produces
-    // proof terms of the form `Eq.refl true : decide p = true`.
+    // TODO: add metadata to control whether this optimization is used or not.
     if (!has_fvar(t) && is_constant(s, *g_bool_true)) {
         if (is_constant(whnf(t), *g_bool_true)) {
             return true;
@@ -1099,7 +1076,6 @@ bool type_checker::is_def_eq_core(expr const & t, expr const & s) {
     r = is_def_eq_proof_irrel(t_n, s_n);
     if (r != l_undef) return r == l_true;
 
-    /* NB: `lazy_delta_reduction` updates `t_n` and `s_n` even when returning `l_undef`. */
     r = lazy_delta_reduction(t_n, s_n);
     if (r != l_undef) return r == l_true;
 
@@ -1172,18 +1148,18 @@ expr type_checker::eta_expand(expr const & e) {
     return m_lctx.mk_lambda(fvars, r);
 }
 
-type_checker::type_checker(environment const & env, local_ctx const & lctx, diagnostics * diag, definition_safety ds):
-    m_st_owner(true), m_st(new state(env)), m_diag(diag),
+type_checker::type_checker(environment const & env, local_ctx const & lctx, definition_safety ds):
+    m_st_owner(true), m_st(new state(env)),
     m_lctx(lctx), m_definition_safety(ds), m_lparams(nullptr) {
 }
 
 type_checker::type_checker(state & st, local_ctx const & lctx, definition_safety ds):
-    m_st_owner(false), m_st(&st), m_diag(nullptr), m_lctx(lctx),
+    m_st_owner(false), m_st(&st), m_lctx(lctx),
     m_definition_safety(ds), m_lparams(nullptr) {
 }
 
 type_checker::type_checker(type_checker && src):
-    m_st_owner(src.m_st_owner), m_st(src.m_st), m_diag(src.m_diag), m_lctx(std::move(src.m_lctx)),
+    m_st_owner(src.m_st_owner), m_st(src.m_st), m_lctx(std::move(src.m_lctx)),
     m_definition_safety(src.m_definition_safety), m_lparams(src.m_lparams) {
     src.m_st_owner = false;
 }
@@ -1191,6 +1167,18 @@ type_checker::type_checker(type_checker && src):
 type_checker::~type_checker() {
     if (m_st_owner)
         delete m_st;
+}
+
+extern "C" LEAN_EXPORT lean_object * lean_kernel_is_def_eq(lean_object * env, lean_object * lctx, lean_object * a, lean_object * b) {
+    return catch_kernel_exceptions<object*>([&]() {
+        return lean_box(type_checker(environment(env), local_ctx(lctx)).is_def_eq(expr(a), expr(b)));
+    });
+}
+
+extern "C" LEAN_EXPORT lean_object * lean_kernel_whnf(lean_object * env, lean_object * lctx, lean_object * a) {
+    return catch_kernel_exceptions<object*>([&]() {
+        return type_checker(environment(env), local_ctx(lctx)).whnf(expr(a)).steal();
+    });
 }
 
 inline static expr * new_persistent_expr_const(name const & n) {

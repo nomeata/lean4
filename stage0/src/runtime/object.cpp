@@ -46,18 +46,12 @@ Author: Leonardo de Moura
 
 namespace lean {
 
-static bool should_abort_on_panic() {
-#ifdef LEAN_EMSCRIPTEN
-    return false;
-#else
-    return std::getenv("LEAN_ABORT_ON_PANIC");
-#endif
-}
-
 static void abort_on_panic() {
-    if (should_abort_on_panic()) {
+#ifndef LEAN_EMSCRIPTEN
+    if (std::getenv("LEAN_ABORT_ON_PANIC")) {
         abort();
     }
+#endif
 }
 
 extern "C" LEAN_EXPORT void lean_internal_panic(char const * msg) {
@@ -89,41 +83,27 @@ extern "C" LEAN_EXPORT void lean_set_panic_messages(bool flag) {
     g_panic_messages = flag;
 }
 
-static void panic_eprintln(char const * line) {
-    if (g_exit_on_panic || should_abort_on_panic()) {
-        // If we are about to kill the process, we should skip the Lean stderr buffer
-        std::cerr << line << "\n";
-    } else {
-        io_eprintln(lean_mk_string(line));
-    }
-}
-
 static void print_backtrace() {
 #ifdef __GLIBC__
     void * bt_buf[100];
     int nptrs = backtrace(bt_buf, sizeof(bt_buf) / sizeof(void *));
-    if (char ** symbols = backtrace_symbols(bt_buf, nptrs)) {
-        for (int i = 0; i < nptrs; i++) {
-            panic_eprintln(symbols[i]);
-        }
-        // According to `man backtrace`, each `symbols[i]` should NOT be freed
-        free(symbols);
-        if (nptrs == sizeof(bt_buf)) {
-            panic_eprintln("...");
-        }
+    backtrace_symbols_fd(bt_buf, nptrs, STDERR_FILENO);
+    if (nptrs == sizeof(bt_buf)) {
+        std::cerr << "...\n";
     }
 #else
-    panic_eprintln("(stack trace unavailable)");
+    std::cerr << "(stack trace unavailable)\n";
 #endif
 }
 
 extern "C" LEAN_EXPORT object * lean_panic_fn(object * default_val, object * msg) {
+    // TODO(Leo, Kha): add thread local buffer for interpreter.
     if (g_panic_messages) {
-        panic_eprintln(lean_string_cstr(msg));
+        std::cerr << lean_string_cstr(msg) << "\n";
 #ifdef __GLIBC__
         char * bt_env = getenv("LEAN_BACKTRACE");
         if (!bt_env || strcmp(bt_env, "0") != 0) {
-            panic_eprintln("backtrace:");
+            std::cerr << "backtrace:\n";
             print_backtrace();
         }
 #endif
@@ -167,28 +147,6 @@ extern "C" LEAN_EXPORT size_t lean_object_byte_size(lean_object * o) {
         case LeanArray:       return lean_array_byte_size(o);
         case LeanScalarArray: return lean_sarray_byte_size(o);
         case LeanString:      return lean_string_byte_size(o);
-        default:              return o->m_cs_sz;
-        }
-    }
-}
-
-extern "C" LEAN_EXPORT size_t lean_object_data_byte_size(lean_object * o) {
-    if (o->m_cs_sz == 0) {
-        /* Recall that multi-threaded, single-threaded and persistent objects are stored in the heap.
-           Persistent objects are multi-threaded and/or single-threaded that have been "promoted" to
-           a persistent status. */
-        switch (lean_ptr_tag(o)) {
-        case LeanArray:       return lean_array_data_byte_size(o);
-        case LeanScalarArray: return lean_sarray_data_byte_size(o);
-        case LeanString:      return lean_string_data_byte_size(o);
-        default:              return lean_small_object_size(o);
-        }
-    } else {
-        /* See comment at `lean_set_non_heap_header`, for small objects we store the object size in the RC field. */
-        switch (lean_ptr_tag(o)) {
-        case LeanArray:       return lean_array_data_byte_size(o);
-        case LeanScalarArray: return lean_sarray_data_byte_size(o);
-        case LeanString:      return lean_string_data_byte_size(o);
         default:              return o->m_cs_sz;
         }
     }
@@ -386,23 +344,23 @@ object * array_mk_empty() {
 }
 
 extern "C" object * lean_list_to_array(object *, object *);
-extern "C" object * lean_array_to_list_impl(object *, object *);
+extern "C" object * lean_array_to_list(object *, object *);
 
 extern "C" LEAN_EXPORT object * lean_array_mk(lean_obj_arg lst) {
     return lean_list_to_array(lean_box(0), lst);
 }
 
-extern "C" LEAN_EXPORT lean_object * lean_array_to_list(lean_obj_arg a) {
-    return lean_array_to_list_impl(lean_box(0), a);
+extern "C" LEAN_EXPORT lean_object * lean_array_data(lean_obj_arg a) {
+    return lean_array_to_list(lean_box(0), a);
 }
 
 extern "C" LEAN_EXPORT lean_obj_res lean_array_get_panic(lean_obj_arg def_val) {
-    return lean_panic_fn(def_val, lean_mk_ascii_string_unchecked("Error: index out of bounds"));
+    return lean_panic_fn(def_val, lean_mk_string("Error: index out of bounds"));
 }
 
 extern "C" LEAN_EXPORT lean_obj_res lean_array_set_panic(lean_obj_arg a, lean_obj_arg v) {
     lean_dec(v);
-    return lean_panic_fn(a, lean_mk_ascii_string_unchecked("Error: index out of bounds"));
+    return lean_panic_fn(a, lean_mk_string("Error: index out of bounds"));
 }
 
 // =======================================
@@ -693,14 +651,10 @@ class task_manager {
             unique_lock<mutex> lock(m_mutex);
             m_idle_std_workers++;
             while (true) {
-                if (m_queues_size == 0 && m_shutting_down) {
-                    break;
-                }
-                if (m_queues_size == 0 ||
-                        // If we have reached the maximum number of standard workers (because the
-                        // maximum was decreased by `task_get`), wait for someone else to become
-                        // idle before picking up new work.
-                        m_std_workers.size() - m_idle_std_workers >= m_max_std_workers) {
+                if (m_queues_size == 0) {
+                    if (m_shutting_down) {
+                        break;
+                    }
                     m_queue_cv.wait(lock);
                     continue;
                 }
@@ -863,19 +817,7 @@ public:
         unique_lock<mutex> lock(m_mutex);
         if (t->m_value)
             return;
-        // see `Task.get`
-        bool in_pool = g_current_task_object && g_current_task_object->m_imp->m_prio <= LEAN_MAX_PRIO;
-        if (in_pool) {
-            m_max_std_workers++;
-            if (m_idle_std_workers == 0)
-                spawn_worker();
-            else
-                m_queue_cv.notify_one();
-        }
         m_task_finished_cv.wait(lock, [&]() { return t->m_value != nullptr; });
-        if (in_pool) {
-            m_max_std_workers--;
-        }
     }
 
     object * wait_any(object * task_list) {
@@ -1088,17 +1030,8 @@ extern "C" LEAN_EXPORT void lean_io_cancel_core(b_obj_arg t) {
     g_task_manager->cancel(lean_to_task(t));
 }
 
-extern "C" LEAN_EXPORT uint8_t lean_io_get_task_state_core(b_obj_arg t) {
-    lean_task_object * o = lean_to_task(t);
-    if (o->m_imp) {
-        if (o->m_imp->m_closure) {
-            return 0; // waiting (waiting/queued)
-        } else {
-            return 1; // running (running/promised)
-        }
-    } else {
-        return 2; // finished
-    }
+extern "C" LEAN_EXPORT bool lean_io_has_finished_core(b_obj_arg t) {
+    return lean_to_task(t)->m_value != nullptr;
 }
 
 extern "C" LEAN_EXPORT b_obj_res lean_io_wait_any_core(b_obj_arg task_list) {
@@ -1574,19 +1507,29 @@ extern "C" LEAN_EXPORT bool lean_int_big_nonneg(object * a) {
 // UInt
 
 extern "C" LEAN_EXPORT uint8 lean_uint8_of_big_nat(b_obj_arg a) {
-    return mpz_value(a).mod8();
+    return static_cast<uint8>(mpz_value(a).mod8());
 }
 
 extern "C" LEAN_EXPORT uint16 lean_uint16_of_big_nat(b_obj_arg a) {
-    return mpz_value(a).mod16();
+    return static_cast<uint16>(mpz_value(a).mod16());
 }
 
 extern "C" LEAN_EXPORT uint32 lean_uint32_of_big_nat(b_obj_arg a) {
     return mpz_value(a).mod32();
 }
 
+extern "C" LEAN_EXPORT uint32 lean_uint32_big_modn(uint32 a1, b_lean_obj_arg a2) {
+    mpz const & m = mpz_value(a2);
+    return m.is_unsigned_int() ? a1 % m.get_unsigned_int() : a1;
+}
+
 extern "C" LEAN_EXPORT uint64 lean_uint64_of_big_nat(b_obj_arg a) {
     return mpz_value(a).mod64();
+}
+
+extern "C" LEAN_EXPORT uint64 lean_uint64_big_modn(uint64 a1, b_lean_obj_arg) {
+    // TODO(Leo)
+    return a1;
 }
 
 extern "C" LEAN_EXPORT uint64 lean_uint64_mix_hash(uint64 a1, uint64 a2) {
@@ -1597,32 +1540,9 @@ extern "C" LEAN_EXPORT usize lean_usize_of_big_nat(b_obj_arg a) {
     return mpz_value(a).get_size_t();
 }
 
-// =======================================
-// IntX
-
-extern "C" LEAN_EXPORT int8 lean_int8_of_big_int(b_obj_arg a) {
-    return mpz_value(a).smod8();
-}
-
-extern "C" LEAN_EXPORT int16 lean_int16_of_big_int(b_obj_arg a) {
-    return mpz_value(a).smod16();
-}
-
-extern "C" LEAN_EXPORT int32 lean_int32_of_big_int(b_obj_arg a) {
-    return mpz_value(a).smod32();
-}
-
-extern "C" LEAN_EXPORT int64 lean_int64_of_big_int(b_obj_arg a) {
-    return mpz_value(a).smod64();
-}
-
-extern "C" LEAN_EXPORT isize lean_isize_of_big_int(b_obj_arg a) {
-    if (sizeof(ptrdiff_t) == 8) {
-        return static_cast<isize>(mpz_value(a).smod64());
-    } else {
-        // We assert in int.h that the size of ptrdiff_t is 8 or 4.
-        return static_cast<isize>(mpz_value(a).smod32());
-    }
+extern "C" LEAN_EXPORT usize lean_usize_big_modn(usize a1, b_lean_obj_arg) {
+    // TODO(Leo)
+    return a1;
 }
 
 // =======================================
@@ -1632,9 +1552,9 @@ extern "C" LEAN_EXPORT lean_obj_res lean_float_to_string(double a) {
     if (isnan(a))
         // override NaN because we don't want NaNs to be distinguishable
         // because the sign bit / payload bits can be architecture-dependent
-        return mk_ascii_string_unchecked("NaN");
+        return mk_string("NaN");
     else
-        return mk_ascii_string_unchecked(std::to_string(a));
+        return mk_string(std::to_string(a));
 }
 
 extern "C" LEAN_EXPORT double lean_float_scaleb(double a, b_lean_obj_arg b) {
@@ -1658,77 +1578,6 @@ extern "C" LEAN_EXPORT obj_res lean_float_frexp(double a) {
     return r;
 }
 
-extern "C" LEAN_EXPORT double lean_float_of_bits(uint64_t u)
-{
-    static_assert(sizeof(double) == sizeof(u), "`double` unexpected size.");
-    double ret;
-    std::memcpy(&ret, &u, sizeof(double));
-    if (isnan(ret))
-        ret = std::numeric_limits<double>::quiet_NaN();
-    return ret;
-}
-
-extern "C" LEAN_EXPORT uint64_t lean_float_to_bits(double d)
-{
-    uint64_t ret;
-    if (isnan(d))
-        d = std::numeric_limits<double>::quiet_NaN();
-    std::memcpy(&ret, &d, sizeof(double));
-    return ret;
-}
-
-// =======================================
-// Float32
-
-extern "C" LEAN_EXPORT lean_obj_res lean_float32_to_string(float a) {
-    if (isnan(a))
-        // override NaN because we don't want NaNs to be distinguishable
-        // because the sign bit / payload bits can be architecture-dependent
-        return mk_ascii_string_unchecked("NaN");
-    else
-        return mk_ascii_string_unchecked(std::to_string(a));
-}
-
-extern "C" LEAN_EXPORT float lean_float32_scaleb(float a, b_lean_obj_arg b) {
-   if (lean_is_scalar(b)) {
-     return scalbn(a, lean_scalar_to_int(b));
-   } else if (a == 0 || mpz_value(b).is_neg()) {
-     return 0;
-   } else {
-     return a * (1.0 / 0.0);
-   }
-}
-
-extern "C" LEAN_EXPORT uint8_t lean_float32_isnan(float a) { return (bool) isnan(a); }
-extern "C" LEAN_EXPORT uint8_t lean_float32_isfinite(float a) { return (bool) isfinite(a); }
-extern "C" LEAN_EXPORT uint8_t lean_float32_isinf(float a) { return (bool) isinf(a); }
-extern "C" LEAN_EXPORT obj_res lean_float32_frexp(float a) {
-    object* r = lean_alloc_ctor(0, 2, 0);
-    int exp;
-    lean_ctor_set(r, 0, lean_box_float32(frexp(a, &exp)));
-    lean_ctor_set(r, 1, isfinite(a) ? lean_int_to_int(exp) : lean_box(0));
-    return r;
-}
-
-extern "C" LEAN_EXPORT float lean_float32_of_bits(uint32_t u)
-{
-    static_assert(sizeof(float) == sizeof(u), "`float` unexpected size.");
-    float ret;
-    std::memcpy(&ret, &u, sizeof(float));
-    if (isnan(ret))
-        ret = std::numeric_limits<float>::quiet_NaN();
-    return ret;
-}
-
-extern "C" LEAN_EXPORT uint32_t lean_float32_to_bits(float d)
-{
-    uint32_t ret;
-    if (isnan(d))
-        d = std::numeric_limits<float>::quiet_NaN();
-    std::memcpy(&ret, &d, sizeof(float));
-    return ret;
-}
-
 // =======================================
 // Strings
 
@@ -1749,7 +1598,7 @@ static object * string_ensure_capacity(object * o, size_t extra) {
     }
 }
 
-extern "C" LEAN_EXPORT object * lean_mk_string_unchecked(char const * s, size_t sz, size_t len) {
+extern "C" LEAN_EXPORT object * lean_mk_string_core(char const * s, size_t sz, size_t len) {
     size_t rsz = sz + 1;
     object * r = lean_alloc_string(rsz, rsz, len);
     memcpy(w_string_cstr(r), s, sz);
@@ -1757,51 +1606,16 @@ extern "C" LEAN_EXPORT object * lean_mk_string_unchecked(char const * s, size_t 
     return r;
 }
 
-object * lean_mk_string_lossy_recover(char const * s, size_t sz, size_t pos, size_t i) {
-    std::string str(s, pos);
-    size_t start = pos;
-    while (pos < sz) {
-        if (!validate_utf8_one((const uint8_t *)s, sz, pos)) {
-            str.append(s + start, pos - start);
-            str.append("\ufffd"); // U+FFFD REPLACEMENT CHARACTER
-            do pos++; while (pos < sz && (s[pos] & 0xc0) == 0x80);
-            start = pos;
-        }
-        i++;
-    }
-    str.append(s + start, pos - start);
-    return lean_mk_string_unchecked(str.data(), str.size(), i);
-}
-
 extern "C" LEAN_EXPORT object * lean_mk_string_from_bytes(char const * s, size_t sz) {
-    size_t pos = 0, i = 0;
-    if (validate_utf8((const uint8_t *)s, sz, pos, i)) {
-        return lean_mk_string_unchecked(s, pos, i);
-    } else {
-        return lean_mk_string_lossy_recover(s, sz, pos, i);
-    }
-}
-
-extern "C" LEAN_EXPORT object * lean_mk_string_from_bytes_unchecked(char const * s, size_t sz) {
-    return lean_mk_string_unchecked(s, sz, utf8_strlen(s, sz));
+    return lean_mk_string_core(s, sz, utf8_strlen(s, sz));
 }
 
 extern "C" LEAN_EXPORT object * lean_mk_string(char const * s) {
     return lean_mk_string_from_bytes(s, strlen(s));
 }
 
-extern "C" LEAN_EXPORT object * lean_mk_ascii_string_unchecked(char const * s) {
-    size_t len = strlen(s);
-    return lean_mk_string_unchecked(s, len, len);
-}
-
 extern "C" LEAN_EXPORT obj_res lean_string_from_utf8_unchecked(b_obj_arg a) {
-    return lean_mk_string_from_bytes_unchecked(reinterpret_cast<char *>(lean_sarray_cptr(a)), lean_sarray_size(a));
-}
-
-extern "C" LEAN_EXPORT uint8 lean_string_validate_utf8(b_obj_arg a) {
-    size_t pos = 0, i = 0;
-    return validate_utf8(lean_sarray_cptr(a), lean_sarray_size(a), pos, i);
+    return lean_mk_string_from_bytes(reinterpret_cast<char *>(lean_sarray_cptr(a)), lean_sarray_size(a));
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_to_utf8(b_obj_arg s) {
@@ -1815,8 +1629,8 @@ object * mk_string(std::string const & s) {
     return lean_mk_string_from_bytes(s.data(), s.size());
 }
 
-object * mk_ascii_string_unchecked(std::string const & s) {
-    return lean_mk_string_unchecked(s.data(), s.size(), s.size());
+object * mk_ascii_string(std::string const & s) {
+    return lean_mk_string_core(s.data(), s.size(), s.size());
 }
 
 std::string string_to_std(b_obj_arg o) {
@@ -1886,6 +1700,16 @@ extern "C" LEAN_EXPORT bool lean_string_lt(object * s1, object * s2) {
     return r < 0 || (r == 0 && sz1 < sz2);
 }
 
+static std::string list_as_string(b_obj_arg lst) {
+    std::string s;
+    b_obj_arg o = lst;
+    while (!lean_is_scalar(o)) {
+        push_unicode_scalar(s, lean_unbox_uint32(lean_ctor_get(o, 0)));
+        o = lean_ctor_get(o, 1);
+    }
+    return s;
+}
+
 static obj_res string_to_list_core(std::string const & s, bool reverse = false) {
     std::vector<unsigned> tmp;
     utf8_decode(s, tmp);
@@ -1904,16 +1728,9 @@ static obj_res string_to_list_core(std::string const & s, bool reverse = false) 
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_mk(obj_arg cs) {
-    std::string s;
-    b_obj_arg o = cs;
-    size_t len = 0;
-    while (!lean_is_scalar(o)) {
-        push_unicode_scalar(s, lean_unbox_uint32(lean_ctor_get(o, 0)));
-        o = lean_ctor_get(o, 1);
-        len++;
-    }
+    std::string s = list_as_string(cs);
     lean_dec(cs);
-    return lean_mk_string_unchecked(s.data(), s.size(), len);
+    return mk_string(s);
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_data(obj_arg s) {
@@ -1924,38 +1741,38 @@ extern "C" LEAN_EXPORT obj_res lean_string_data(obj_arg s) {
 
 static bool lean_string_utf8_get_core(char const * str, usize size, usize i, uint32 & result) {
     unsigned c = static_cast<unsigned char>(str[i]);
-    /* zero continuation (0 to 0x7F) */
+    /* zero continuation (0 to 127) */
     if ((c & 0x80) == 0) {
         result = c;
         return true;
     }
 
-    /* one continuation (0x80 to 0x7FF) */
+    /* one continuation (128 to 2047) */
     if ((c & 0xe0) == 0xc0 && i + 1 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         result = ((c & 0x1f) << 6) | (c1 & 0x3f);
-        if (result >= 0x80) {
+        if (result >= 128) {
             return true;
         }
     }
 
-    /* two continuations (0x800 to 0xD7FF and 0xE000 to 0xFFFF) */
+    /* two continuations (2048 to 55295 and 57344 to 65535) */
     if ((c & 0xf0) == 0xe0 && i + 2 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         unsigned c2 = static_cast<unsigned char>(str[i+2]);
         result = ((c & 0x0f) << 12) | ((c1 & 0x3f) << 6) | (c2 & 0x3f);
-        if (result >= 0x800 && (result < 0xD800 || result > 0xDFFF)) {
+        if (result >= 2048 && (result < 55296 || result > 57343)) {
             return true;
         }
     }
 
-    /* three continuations (0x10000 to 0x10FFFF) */
+    /* three continuations (65536 to 1114111) */
     if ((c & 0xf8) == 0xf0 && i + 3 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         unsigned c2 = static_cast<unsigned char>(str[i+2]);
         unsigned c3 = static_cast<unsigned char>(str[i+3]);
         result = ((c & 0x07) << 18) | ((c1 & 0x3f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
-        if (result >= 0x10000 && result <= 0x10FFFF) {
+        if (result >= 65536 && result <= 1114111) {
             return true;
         }
     }
@@ -1993,32 +1810,32 @@ extern "C" LEAN_EXPORT uint32 lean_string_utf8_get(b_obj_arg s, b_obj_arg i0) {
 }
 
 extern "C" LEAN_EXPORT uint32_t lean_string_utf8_get_fast_cold(char const * str, size_t i, size_t size, unsigned char c) {
-    /* one continuation (0x80 to 0x7FF) */
+    /* one continuation (128 to 2047) */
     if ((c & 0xe0) == 0xc0 && i + 1 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         uint32_t result = ((c & 0x1f) << 6) | (c1 & 0x3f);
-        if (result >= 0x80) {
+        if (result >= 128) {
             return result;
         }
     }
 
-    /* two continuations (0x800 to 0xD7FF and 0xE000 to 0xFFFF) */
+    /* two continuations (2048 to 55295 and 57344 to 65535) */
     if ((c & 0xf0) == 0xe0 && i + 2 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         unsigned c2 = static_cast<unsigned char>(str[i+2]);
         uint32_t result = ((c & 0x0f) << 12) | ((c1 & 0x3f) << 6) | (c2 & 0x3f);
-        if (result >= 0x800 && (result < 0xD800 || result > 0xDFFF)) {
+        if (result >= 2048 && (result < 55296 || result > 57343)) {
             return result;
         }
     }
 
-    /* three continuations (0x10000 to 0x10FFFF) */
+    /* three continuations (65536 to 1114111) */
     if ((c & 0xf8) == 0xf0 && i + 3 < size) {
         unsigned c1 = static_cast<unsigned char>(str[i+1]);
         unsigned c2 = static_cast<unsigned char>(str[i+2]);
         unsigned c3 = static_cast<unsigned char>(str[i+3]);
         uint32_t result = ((c & 0x07) << 18) | ((c1 & 0x3f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
-        if (result >= 0x10000 && result <= 0x10FFFF) {
+        if (result >= 65536 && result <= 1114111) {
             return result;
         }
     }
@@ -2046,7 +1863,7 @@ extern "C" LEAN_EXPORT obj_res lean_string_utf8_get_opt(b_obj_arg s, b_obj_arg i
 }
 
 static uint32 lean_string_utf8_get_panic() {
-    lean_panic_fn(lean_box(0), lean_mk_ascii_string_unchecked("Error: invalid `String.Pos` at `String.get!`"));
+    lean_panic_fn(lean_box(0), lean_mk_string("Error: invalid `String.Pos` at `String.get!`"));
     return lean_char_default_value();
 }
 
@@ -2105,19 +1922,6 @@ static inline bool is_utf8_first_byte(unsigned char c) {
     return (c & 0x80) == 0 || (c & 0xe0) == 0xc0 || (c & 0xf0) == 0xe0 || (c & 0xf8) == 0xf0;
 }
 
-extern "C" LEAN_EXPORT uint8 lean_string_is_valid_pos(b_obj_arg s, b_obj_arg i0) {
-    if (!lean_is_scalar(i0)) {
-        /* See comment at string_utf8_get */
-        return false;
-    }
-    usize i = lean_unbox(i0);
-    usize sz = lean_string_size(s) - 1;
-    if (i > sz) return false;
-    if (i == sz) return true;
-    char const * str = lean_string_cstr(s);
-    return is_utf8_first_byte(str[i]);
-}
-
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_extract(b_obj_arg s, b_obj_arg b0, b_obj_arg e0) {
     if (!lean_is_scalar(b0) || !lean_is_scalar(e0)) {
         /* See comment at string_utf8_get */
@@ -2127,10 +1931,10 @@ extern "C" LEAN_EXPORT obj_res lean_string_utf8_extract(b_obj_arg s, b_obj_arg b
     usize e = lean_unbox(e0);
     char const * str = lean_string_cstr(s);
     usize sz = lean_string_size(s) - 1;
-    if (b >= e || b >= sz) return lean_mk_string_unchecked("", 0, 0);
+    if (b >= e || b >= sz) return lean_mk_string("");
     /* In the reference implementation if `b` is not pointing to a valid UTF8
        character start position, the result is the empty string. */
-    if (!is_utf8_first_byte(str[b])) return lean_mk_string_unchecked("", 0, 0);
+    if (!is_utf8_first_byte(str[b])) return lean_mk_string("");
     if (e > sz) e = sz;
     lean_assert(b < e);
     lean_assert(e > 0);
@@ -2139,7 +1943,7 @@ extern "C" LEAN_EXPORT obj_res lean_string_utf8_extract(b_obj_arg s, b_obj_arg b
     if (e < sz && !is_utf8_first_byte(str[e])) e = sz;
     usize new_sz = e - b;
     lean_assert(new_sz > 0);
-    return lean_mk_string_from_bytes_unchecked(lean_string_cstr(s) + b, new_sz);
+    return lean_mk_string_from_bytes(lean_string_cstr(s) + b, new_sz);
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_prev(b_obj_arg s, b_obj_arg i0) {
@@ -2188,10 +1992,9 @@ extern "C" LEAN_EXPORT obj_res lean_string_utf8_set(obj_arg s, b_obj_arg i0, uin
     std::string tmp;
     push_unicode_scalar(tmp, c);
     std::string new_s = string_to_std(s);
-    usize len = lean_string_len(s);
     dec(s);
     new_s.replace(i, get_utf8_char_size_at(new_s, i), tmp);
-    return lean_mk_string_unchecked(new_s.data(), new_s.size(), len);
+    return mk_string(new_s);
 }
 
 extern "C" LEAN_EXPORT uint64 lean_string_hash(b_obj_arg s) {
@@ -2201,7 +2004,7 @@ extern "C" LEAN_EXPORT uint64 lean_string_hash(b_obj_arg s) {
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_of_usize(size_t n) {
-    return mk_ascii_string_unchecked(std::to_string(n));
+    return mk_ascii_string(std::to_string(n));
 }
 
 // =======================================

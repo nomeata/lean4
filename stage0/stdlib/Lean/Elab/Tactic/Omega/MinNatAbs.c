@@ -1,6 +1,6 @@
 // Lean compiler output
 // Module: Lean.Elab.Tactic.Omega.MinNatAbs
-// Imports: Init.BinderPredicates Init.Data.Int.Order Init.Data.List.MinMax Init.Data.Nat.MinMax Init.Data.Option.Lemmas
+// Imports: Init.BinderPredicates Init.Data.Int.Order Init.Data.List.Lemmas Init.Data.Nat.MinMax Init.Data.Option.Lemmas
 #include <lean/lean.h>
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -14,23 +14,23 @@
 extern "C" {
 #endif
 LEAN_EXPORT lean_object* l_List_nonzeroMinimum(lean_object*);
+LEAN_EXPORT lean_object* l_List_maximum_x3f___at_List_maxNatAbs___spec__1(lean_object*);
 LEAN_EXPORT lean_object* l_List_mapTR_loop___at_List_minNatAbs___spec__1(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_List_filterTR_loop___at_List_nonzeroMinimum___spec__1(lean_object*, lean_object*);
 uint8_t l_instDecidableNot___rarg(uint8_t);
 LEAN_EXPORT lean_object* l_List_maxNatAbs(lean_object*);
-LEAN_EXPORT lean_object* l_List_min_x3f___at_List_nonzeroMinimum___spec__2___boxed(lean_object*);
-LEAN_EXPORT lean_object* l_List_max_x3f___at_List_maxNatAbs___spec__1___boxed(lean_object*);
+LEAN_EXPORT lean_object* l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2___boxed(lean_object*);
+LEAN_EXPORT lean_object* l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2(lean_object*);
 lean_object* lean_nat_abs(lean_object*);
-LEAN_EXPORT lean_object* l_List_max_x3f___at_List_maxNatAbs___spec__1(lean_object*);
 uint8_t lean_nat_dec_eq(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_List_foldl___at_List_maxNatAbs___spec__2(lean_object*, lean_object*);
-LEAN_EXPORT lean_object* l_List_min_x3f___at_List_nonzeroMinimum___spec__2(lean_object*);
 LEAN_EXPORT lean_object* l_List_foldl___at_List_maxNatAbs___spec__2___boxed(lean_object*, lean_object*);
 lean_object* l_List_reverse___rarg(lean_object*);
 LEAN_EXPORT lean_object* l_List_foldl___at_List_nonzeroMinimum___spec__3(lean_object*, lean_object*);
 uint8_t lean_nat_dec_le(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_List_foldl___at_List_nonzeroMinimum___spec__3___boxed(lean_object*, lean_object*);
 LEAN_EXPORT lean_object* l_List_minNatAbs(lean_object*);
+LEAN_EXPORT lean_object* l_List_maximum_x3f___at_List_maxNatAbs___spec__1___boxed(lean_object*);
 LEAN_EXPORT lean_object* l_List_filterTR_loop___at_List_nonzeroMinimum___spec__1(lean_object* x_1, lean_object* x_2) {
 _start:
 {
@@ -130,7 +130,7 @@ goto _start;
 }
 }
 }
-LEAN_EXPORT lean_object* l_List_min_x3f___at_List_nonzeroMinimum___spec__2(lean_object* x_1) {
+LEAN_EXPORT lean_object* l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2(lean_object* x_1) {
 _start:
 {
 if (lean_obj_tag(x_1) == 0)
@@ -157,7 +157,7 @@ _start:
 lean_object* x_2; lean_object* x_3; lean_object* x_4; 
 x_2 = lean_box(0);
 x_3 = l_List_filterTR_loop___at_List_nonzeroMinimum___spec__1(x_1, x_2);
-x_4 = l_List_min_x3f___at_List_nonzeroMinimum___spec__2(x_3);
+x_4 = l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2(x_3);
 lean_dec(x_3);
 if (lean_obj_tag(x_4) == 0)
 {
@@ -185,11 +185,11 @@ lean_dec(x_1);
 return x_3;
 }
 }
-LEAN_EXPORT lean_object* l_List_min_x3f___at_List_nonzeroMinimum___spec__2___boxed(lean_object* x_1) {
+LEAN_EXPORT lean_object* l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2___boxed(lean_object* x_1) {
 _start:
 {
 lean_object* x_2; 
-x_2 = l_List_min_x3f___at_List_nonzeroMinimum___spec__2(x_1);
+x_2 = l_List_minimum_x3f___at_List_nonzeroMinimum___spec__2(x_1);
 lean_dec(x_1);
 return x_2;
 }
@@ -282,7 +282,7 @@ goto _start;
 }
 }
 }
-LEAN_EXPORT lean_object* l_List_max_x3f___at_List_maxNatAbs___spec__1(lean_object* x_1) {
+LEAN_EXPORT lean_object* l_List_maximum_x3f___at_List_maxNatAbs___spec__1(lean_object* x_1) {
 _start:
 {
 if (lean_obj_tag(x_1) == 0)
@@ -309,7 +309,7 @@ _start:
 lean_object* x_2; lean_object* x_3; lean_object* x_4; 
 x_2 = lean_box(0);
 x_3 = l_List_mapTR_loop___at_List_minNatAbs___spec__1(x_1, x_2);
-x_4 = l_List_max_x3f___at_List_maxNatAbs___spec__1(x_3);
+x_4 = l_List_maximum_x3f___at_List_maxNatAbs___spec__1(x_3);
 lean_dec(x_3);
 if (lean_obj_tag(x_4) == 0)
 {
@@ -337,18 +337,18 @@ lean_dec(x_1);
 return x_3;
 }
 }
-LEAN_EXPORT lean_object* l_List_max_x3f___at_List_maxNatAbs___spec__1___boxed(lean_object* x_1) {
+LEAN_EXPORT lean_object* l_List_maximum_x3f___at_List_maxNatAbs___spec__1___boxed(lean_object* x_1) {
 _start:
 {
 lean_object* x_2; 
-x_2 = l_List_max_x3f___at_List_maxNatAbs___spec__1(x_1);
+x_2 = l_List_maximum_x3f___at_List_maxNatAbs___spec__1(x_1);
 lean_dec(x_1);
 return x_2;
 }
 }
 lean_object* initialize_Init_BinderPredicates(uint8_t builtin, lean_object*);
 lean_object* initialize_Init_Data_Int_Order(uint8_t builtin, lean_object*);
-lean_object* initialize_Init_Data_List_MinMax(uint8_t builtin, lean_object*);
+lean_object* initialize_Init_Data_List_Lemmas(uint8_t builtin, lean_object*);
 lean_object* initialize_Init_Data_Nat_MinMax(uint8_t builtin, lean_object*);
 lean_object* initialize_Init_Data_Option_Lemmas(uint8_t builtin, lean_object*);
 static bool _G_initialized = false;
@@ -362,7 +362,7 @@ lean_dec_ref(res);
 res = initialize_Init_Data_Int_Order(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
-res = initialize_Init_Data_List_MinMax(builtin, lean_io_mk_world());
+res = initialize_Init_Data_List_Lemmas(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 res = initialize_Init_Data_Nat_MinMax(builtin, lean_io_mk_world());

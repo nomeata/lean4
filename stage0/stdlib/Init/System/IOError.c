@@ -1,6 +1,6 @@
 // Lean compiler output
 // Module: Init.System.IOError
-// Imports: Init.Data.ToString.Basic
+// Imports: Init.Core Init.Data.UInt.Basic Init.Data.ToString.Basic Init.Data.String.Basic
 #include <lean/lean.h>
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -115,7 +115,7 @@ static lean_object* _init_l_IO_instInhabitedError___closed__2() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("", 0, 0);
+x_1 = lean_mk_string_from_bytes("", 0);
 return x_1;
 }
 }
@@ -689,7 +689,7 @@ static lean_object* _init_l_IO_Error_fopenErrorToString___closed__1() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(" (error code: ", 14, 14);
+x_1 = lean_mk_string_from_bytes(" (error code: ", 14);
 return x_1;
 }
 }
@@ -697,7 +697,7 @@ static lean_object* _init_l_IO_Error_fopenErrorToString___closed__2() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(")\n  file: ", 10, 10);
+x_1 = lean_mk_string_from_bytes(")\n  file: ", 10);
 return x_1;
 }
 }
@@ -705,7 +705,7 @@ static lean_object* _init_l_IO_Error_fopenErrorToString___closed__3() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(", ", 2, 2);
+x_1 = lean_mk_string_from_bytes(", ", 2);
 return x_1;
 }
 }
@@ -771,7 +771,7 @@ static lean_object* _init_l_IO_Error_otherErrorToString___closed__1() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked(")", 1, 1);
+x_1 = lean_mk_string_from_bytes(")", 1);
 return x_1;
 }
 }
@@ -834,7 +834,7 @@ static lean_object* _init_l_IO_Error_toString___closed__1() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("already exists", 14, 14);
+x_1 = lean_mk_string_from_bytes("already exists", 14);
 return x_1;
 }
 }
@@ -842,7 +842,7 @@ static lean_object* _init_l_IO_Error_toString___closed__2() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("resource busy", 13, 13);
+x_1 = lean_mk_string_from_bytes("resource busy", 13);
 return x_1;
 }
 }
@@ -850,7 +850,7 @@ static lean_object* _init_l_IO_Error_toString___closed__3() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("resource vanished", 17, 17);
+x_1 = lean_mk_string_from_bytes("resource vanished", 17);
 return x_1;
 }
 }
@@ -858,7 +858,7 @@ static lean_object* _init_l_IO_Error_toString___closed__4() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("unsupported operation", 21, 21);
+x_1 = lean_mk_string_from_bytes("unsupported operation", 21);
 return x_1;
 }
 }
@@ -866,7 +866,7 @@ static lean_object* _init_l_IO_Error_toString___closed__5() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("hardware fault", 14, 14);
+x_1 = lean_mk_string_from_bytes("hardware fault", 14);
 return x_1;
 }
 }
@@ -874,7 +874,7 @@ static lean_object* _init_l_IO_Error_toString___closed__6() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("directory not empty", 19, 19);
+x_1 = lean_mk_string_from_bytes("directory not empty", 19);
 return x_1;
 }
 }
@@ -882,7 +882,7 @@ static lean_object* _init_l_IO_Error_toString___closed__7() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("illegal operation", 17, 17);
+x_1 = lean_mk_string_from_bytes("illegal operation", 17);
 return x_1;
 }
 }
@@ -890,7 +890,7 @@ static lean_object* _init_l_IO_Error_toString___closed__8() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("protocol error", 14, 14);
+x_1 = lean_mk_string_from_bytes("protocol error", 14);
 return x_1;
 }
 }
@@ -898,7 +898,7 @@ static lean_object* _init_l_IO_Error_toString___closed__9() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("time expired", 12, 12);
+x_1 = lean_mk_string_from_bytes("time expired", 12);
 return x_1;
 }
 }
@@ -906,7 +906,7 @@ static lean_object* _init_l_IO_Error_toString___closed__10() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("interrupted system call", 23, 23);
+x_1 = lean_mk_string_from_bytes("interrupted system call", 23);
 return x_1;
 }
 }
@@ -914,7 +914,7 @@ static lean_object* _init_l_IO_Error_toString___closed__11() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("no such file or directory", 25, 25);
+x_1 = lean_mk_string_from_bytes("no such file or directory", 25);
 return x_1;
 }
 }
@@ -922,7 +922,7 @@ static lean_object* _init_l_IO_Error_toString___closed__12() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("invalid argument", 16, 16);
+x_1 = lean_mk_string_from_bytes("invalid argument", 16);
 return x_1;
 }
 }
@@ -930,7 +930,7 @@ static lean_object* _init_l_IO_Error_toString___closed__13() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("resource exhausted", 18, 18);
+x_1 = lean_mk_string_from_bytes("resource exhausted", 18);
 return x_1;
 }
 }
@@ -938,7 +938,7 @@ static lean_object* _init_l_IO_Error_toString___closed__14() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("inappropriate type", 18, 18);
+x_1 = lean_mk_string_from_bytes("inappropriate type", 18);
 return x_1;
 }
 }
@@ -946,7 +946,7 @@ static lean_object* _init_l_IO_Error_toString___closed__15() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("no such thing", 13, 13);
+x_1 = lean_mk_string_from_bytes("no such thing", 13);
 return x_1;
 }
 }
@@ -954,7 +954,7 @@ static lean_object* _init_l_IO_Error_toString___closed__16() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("end of file", 11, 11);
+x_1 = lean_mk_string_from_bytes("end of file", 11);
 return x_1;
 }
 }
@@ -1420,13 +1420,25 @@ x_1 = l_IO_Error_instToString___closed__1;
 return x_1;
 }
 }
+lean_object* initialize_Init_Core(uint8_t builtin, lean_object*);
+lean_object* initialize_Init_Data_UInt_Basic(uint8_t builtin, lean_object*);
 lean_object* initialize_Init_Data_ToString_Basic(uint8_t builtin, lean_object*);
+lean_object* initialize_Init_Data_String_Basic(uint8_t builtin, lean_object*);
 static bool _G_initialized = false;
 LEAN_EXPORT lean_object* initialize_Init_System_IOError(uint8_t builtin, lean_object* w) {
 lean_object * res;
 if (_G_initialized) return lean_io_result_mk_ok(lean_box(0));
 _G_initialized = true;
+res = initialize_Init_Core(builtin, lean_io_mk_world());
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
+res = initialize_Init_Data_UInt_Basic(builtin, lean_io_mk_world());
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
 res = initialize_Init_Data_ToString_Basic(builtin, lean_io_mk_world());
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
+res = initialize_Init_Data_String_Basic(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 l_IO_instInhabitedError___closed__1 = _init_l_IO_instInhabitedError___closed__1();

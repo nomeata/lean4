@@ -10,9 +10,9 @@ Authors: Leonardo de Moura, Gabriel Ebner, Sebastian Ullrich
 #include <utility>
 #include <vector>
 #include "runtime/optional.h"
-#include "library/elab_environment.h"
+#include "kernel/environment.h"
 
 namespace lean {
 /** \brief Store module using \c env. */
-LEAN_EXPORT void write_module(elab_environment const & env, std::string const & olean_fn);
+void write_module(environment const & env, std::string const & olean_fn);
 }

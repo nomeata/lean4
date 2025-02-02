@@ -84,7 +84,7 @@ static lean_object* _init_l_Lean_Meta_getStructureName___closed__1() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("expected structure", 18, 18);
+x_1 = lean_mk_string_from_bytes("expected structure", 18);
 return x_1;
 }
 }
@@ -101,7 +101,7 @@ static lean_object* _init_l_Lean_Meta_getStructureName___closed__3() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("'", 1, 1);
+x_1 = lean_mk_string_from_bytes("'", 1);
 return x_1;
 }
 }
@@ -118,7 +118,7 @@ static lean_object* _init_l_Lean_Meta_getStructureName___closed__5() {
 _start:
 {
 lean_object* x_1; 
-x_1 = lean_mk_string_unchecked("' is not a structure", 20, 20);
+x_1 = lean_mk_string_from_bytes("' is not a structure", 20);
 return x_1;
 }
 }
@@ -136,6 +136,7 @@ _start:
 {
 lean_object* x_7; 
 x_7 = l_Lean_Expr_getAppFn(x_1);
+lean_dec(x_1);
 if (lean_obj_tag(x_7) == 4)
 {
 lean_object* x_8; lean_object* x_9; uint8_t x_10; 
@@ -294,7 +295,6 @@ lean_dec(x_5);
 lean_dec(x_4);
 lean_dec(x_3);
 lean_dec(x_2);
-lean_dec(x_1);
 return x_7;
 }
 }

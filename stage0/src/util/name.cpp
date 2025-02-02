@@ -294,7 +294,7 @@ std::string name::escape(char const * sep) const {
     return s.str();
 }
 
-LEAN_EXPORT std::ostream & operator<<(std::ostream & out, name const & n) {
+std::ostream & operator<<(std::ostream & out, name const & n) {
     display_name(out, n, false, lean_name_separator);
     return out;
 }
